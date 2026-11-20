@@ -278,7 +278,61 @@ The same complete text is also in the repository:
 * `gas/Code.gs`
 * `docs/FULL-TEXT.md`
 
-### 6.3 Set Script Properties
+### 6.3 Where to put the values — choose one method
+
+The code supports both methods. **Use only one.**
+
+#### Method A — Script Properties (recommended)
+
+Leave the `CONFIG` block empty and set these in
+**Project Settings → Script Properties**:
+
+| Property | Value |
+|---|---|
+| `AUTH_KEY` | your `AUTH_KEY` value |
+| `EXIT_URL` | `https://xhr-exit.YOURNAME.workers.dev/relay` |
+| `EXIT_HMAC` | your `GAS` value |
+| `MAX_ITEMS` | `64` |
+| `MAX_BYTES` | `262144` |
+
+This is the safest method because the values are not in the code.
+
+#### Method B — `CONFIG` block (quick test)
+
+At the top of `Code.gs`, fill the `CONFIG` block:
+
+```javascript
+var CONFIG = {
+  AUTH_KEY: "your AUTH_KEY",
+  EXIT_URL: "https://xhr-exit.YOURNAME.workers.dev/relay",
+  EXIT_HMAC: "your GAS value",
+  MAX_ITEMS: 64,
+  MAX_BYTES: 262144
+};
+```
+
+Do not commit a file with real values. If you use Method B, you do not need
+Script Properties.
+
+#### The one line you must never break
+
+The relay must contain:
+
+```javascript
+var authKey = _prop("AUTH_KEY");
+```
+
+If you see:
+
+```javascript
+var authKey = _prop("");
+```
+
+it will never authenticate. Change it back to `_prop("AUTH_KEY")`.
+
+`E2E` is not used here. It goes only in the Android app.
+
+### 6.4 Set Script Properties
 
 1. Click **Project Settings** (the gear on the left).
 2. Scroll to **Script Properties**.
@@ -297,7 +351,7 @@ body limit.
 
 Do **not** add `E2E`. Apps Script must never have it.
 
-### 6.4 Deploy the Web App
+### 6.5 Deploy the Web App
 
 1. Click **Deploy → New deployment**.
 2. Click the gear next to **Select type**.
@@ -318,12 +372,12 @@ https://script.google.com/macros/s/AKfycbxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/exec
 
 The Deployment ID is the `AKfycb...` part between `/s/` and `/exec`.
 
-### 6.5 Quick check
+### 6.6 Quick check
 
 Open the `/exec` URL in a browser. It returns a harmless “Moved / not found”
 page from `doGet`. That is expected; the real relay is `doPost`.
 
-### 6.6 If you change Code.gs later
+### 6.7 If you change Code.gs later
 
 Script Properties changes apply immediately. Code changes do not. After editing
 the code:
@@ -335,15 +389,50 @@ the code:
 
 The Deployment ID stays the same.
 
+### 6.8 Multiple deployment IDs (1 to 5)
+
+XHR supports up to five Apps Script deployments in one profile.
+
+You can:
+
+* create several deployments from the same Apps Script project
+  (**Deploy → New deployment** each time), or
+* create separate Apps Script projects and paste the same code/properties into
+  each.
+
+Every deployment must use:
+
+* the same `AUTH_KEY`,
+* the same `EXIT_URL`,
+* the same `EXIT_HMAC`.
+
+In the Android setup screen, put one Deployment ID or `/exec` URL per line.
+Then choose **Active deployments** from 1 to 5.
+
+How many should you use?
+
+| Active | Best for |
+|---|---|
+| **1** | Lowest Apps Script quota use |
+| **2** | Recommended balance: one downlink poll plus upload/failover |
+| **3-5** | More failover or separate Google accounts |
+
+Important: deployments in the **same Google account share the 20,000
+UrlFetchApp calls/day**. Adding five IDs does not multiply that quota. Separate
+Google accounts do.
+
+The Android engine round-robins requests across the active deployments and
+retries the same encrypted frames on another deployment if one fails.
+
 ---
 
 ## 7. Install the Android app
 
 1. Open
    <https://github.com/jackh0006/XHR/releases/latest>.
-2. Download `XHR-1.0.0-arm64-v8a.apk`.
+2. Download `XHR-1.0.1-arm64-v8a.apk`.
 3. SHA-256:
-   `f233a90f301cb6e528f57f6af545fcf9d021fef138611b8566c4f5e1864cd087`
+   `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
 4. Open **Files → Downloads** and tap the APK.
 5. Allow installs from this source.
 6. If Play Protect warns, choose **Install anyway**.
@@ -359,7 +448,8 @@ Open XHR. On the setup screen enter:
 
 | Field | Value |
 |---|---|
-| Deployment ID or URL | `AKfycb...` or the full `/exec` URL |
+| Deployment ID or URL | Up to 5 IDs/URLs, one per line |
+| Active deployments | 1–5 (`2` recommended) |
 | `AUTH_KEY` | your `AUTH_KEY` value |
 | Tunnel key | your `E2E` value, exactly 64 hex characters |
 | Google edge | `216.239.38.120` |
@@ -518,7 +608,55 @@ If you see HTML, the full chain works.
 
 ---
 
-## 14. Live logs and daily limits
+## 14. Speed and stability settings
+
+These are the settings that matter most:
+
+| Setting | Best choice |
+|---|---|
+| Edge IP | Fastest green result in **Edge** |
+| Mode | **TUN** for all apps, unless you specifically need v2rayNG |
+| MTU | `1500`; use `1400` only if a network fragments |
+| Android Private DNS | **Off** |
+| Chrome Secure DNS | **Off**, or use system DNS |
+| Battery | Allow XHR background activity |
+| Transport | TCP; do not expect UDP/QUIC |
+
+### Disable Private DNS
+
+In TUN mode, XHR answers DNS through `mapdns` on `198.18.0.2:53`. Android
+Private DNS tries DoT on port `853`, which XHR cannot use. It also causes log
+lines like:
+
+```text
+open 198.18.0.2:853 failed
+open 1.1.1.1:853 failed
+```
+
+On Android:
+
+1. **Settings → Network & internet → Private DNS**.
+2. Choose **Off** or **Automatic**.
+3. Reconnect XHR.
+
+In Chrome:
+
+1. **Settings → Privacy and security → Use secure DNS**.
+2. Turn it **off** or select **Use current service provider**.
+
+Cloudflare Workers also block outbound TCP to Cloudflare IP ranges, so
+`1.1.1.1:853`, `1.1.1.1:443`, and Cloudflare-hosted DNS names will fail from
+the Worker. This is expected. Use the XHR mapdns path instead.
+
+### Keep the tunnel stable
+
+* Stay on TUN unless v2rayNG is required.
+* Do not run two VPNs at once.
+* Exclude XHR itself from v2rayNG if you use proxy mode.
+* Allow XHR in Huawei battery settings.
+* If a network blocks the Google edge, choose another IP in Edge.
+
+## 15. Live logs and daily limits
 
 Tap **Logs**:
 
@@ -543,7 +681,7 @@ Set **Settings → Daily safety limit** to stop the tunnel at a chosen size.
 
 ---
 
-## 15. Troubleshooting
+## 16. Troubleshooting
 
 | Symptom | Meaning | Fix |
 |---|---|---|
@@ -577,7 +715,7 @@ wrangler secret list
 
 ---
 
-## 16. Security and honest limits
+## 17. Security and honest limits
 
 * End-to-end **AES-256-GCM**. Google and Cloudflare never get the `E2E` key.
 * **HMAC-SHA256** on client → GAS and GAS → Worker, with a 120-second window.
@@ -596,7 +734,7 @@ wrangler secret list
 
 ---
 
-## 17. Update, rotate, or remove
+## 18. Update, rotate, or remove
 
 ### Rotate secrets
 
@@ -634,7 +772,7 @@ Home → gear → **Reset profile**. This deletes keys and counters from the pho
 
 ---
 
-## 18. File map
+## 19. File map
 
 | Path | What it is |
 |---|---|
@@ -651,7 +789,7 @@ Home → gear → **Reset profile**. This deletes keys and counters from the pho
 
 ---
 
-## 19. Free-plan reality check
+## 20. Free-plan reality check
 
 This path is free **if** Cloudflare Workers Free on your account includes:
 

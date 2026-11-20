@@ -38,7 +38,23 @@ Every deployable text is below, in full.
  * Optional:
  *   MAX_ITEMS     default 64
  *   MAX_BYTES     default 262144
+ *
+ * There are two ways to configure this file:
+ *
+ * 1. Recommended: leave CONFIG empty and set Script Properties:
+ *      AUTH_KEY, EXIT_URL, EXIT_HMAC, MAX_ITEMS, MAX_BYTES
+ *
+ * 2. For a quick test: fill CONFIG below. Values in CONFIG override
+ *    Script Properties. Do not publish a file with real values in CONFIG.
  */
+
+var CONFIG = {
+  // AUTH_KEY: "64-character hex secret",
+  // EXIT_URL: "https://your-worker.workers.dev/relay",
+  // EXIT_HMAC: "64-character hex secret",
+  // MAX_ITEMS: 64,
+  // MAX_BYTES: 262144
+};
 
 var DEFAULTS = { MAX_ITEMS: 64, MAX_BYTES: 262144 };
 
@@ -122,6 +138,10 @@ function _json(obj) {
 }
 
 function _prop(name) {
+  var embedded = CONFIG[name];
+  if (embedded !== undefined && embedded !== null && embedded !== "") {
+    return String(embedded);
+  }
   return PropertiesService.getScriptProperties().getProperty(name) || "";
 }
 
@@ -599,13 +619,14 @@ import (
 )
 
 type Config struct {
-	GASURL      string `json:"gas_url"`
-	GASHost     string `json:"gas_host"`
-	FrontDomain string `json:"front_domain"`
-	GoogleIP    string `json:"google_ip"`
-	AuthKey     string `json:"auth_key"`
-	E2EKey      string `json:"e2e_key"`
-	Listen      string `json:"listen"`
+	GASURL      string   `json:"gas_url"`
+	GASURLs     []string `json:"gas_urls"`
+	GASHost     string   `json:"gas_host"`
+	FrontDomain string   `json:"front_domain"`
+	GoogleIP    string   `json:"google_ip"`
+	AuthKey     string   `json:"auth_key"`
+	E2EKey      string   `json:"e2e_key"`
+	Listen      string   `json:"listen"`
 }
 
 func main() {
@@ -620,8 +641,12 @@ func main() {
 	if err != nil {
 		log.Fatal("e2e_key must be 64 hex characters")
 	}
+	urls := append([]string{}, cfg.GASURLs...)
+	if len(urls) == 0 && cfg.GASURL != "" {
+		urls = append(urls, cfg.GASURL)
+	}
 	c, err := tunnel.New(tunnel.Config{
-		GASURL:      cfg.GASURL,
+		GASURLs:     urls,
 		GASHost:     cfg.GASHost,
 		FrontDomain: cfg.FrontDomain,
 		GoogleIP:    cfg.GoogleIP,
@@ -674,14 +699,27 @@ func loadConfig(path string) (Config, error) {
 	if cfg.AuthKey == "" || cfg.E2EKey == "" {
 		return cfg, errors.New("auth_key and e2e_key are required")
 	}
-	if !strings.HasPrefix(cfg.GASURL, "https://") {
-		id := strings.TrimSpace(cfg.GASURL)
-		if strings.HasPrefix(id, "AKfycb") {
-			cfg.GASURL = "https://script.google.com/macros/s/" + id + "/exec"
-		} else {
-			return cfg, errors.New("gas_url must be an https URL or a deployment ID")
-		}
+	urls := append([]string{}, cfg.GASURLs...)
+	if len(urls) == 0 && cfg.GASURL != "" {
+		urls = append(urls, cfg.GASURL)
 	}
+	if len(urls) == 0 {
+		return cfg, errors.New("gas_url or gas_urls is required")
+	}
+	if len(urls) > 5 {
+		return cfg, errors.New("use at most 5 deployments")
+	}
+	for i, raw := range urls {
+		value := strings.TrimSpace(raw)
+		if strings.HasPrefix(value, "AKfycb") {
+			value = "https://script.google.com/macros/s/" + value + "/exec"
+		}
+		if !strings.HasPrefix(value, "https://") {
+			return cfg, errors.New("every deployment must be an https URL or deployment ID")
+		}
+		urls[i] = value
+	}
+	cfg.GASURLs = urls
 	return cfg, nil
 }
 
@@ -1499,7 +1537,11 @@ const (
 
 // Config describes one XHR client.
 type Config struct {
-	GASURL      string
+	// GASURL is kept for the single-deployment CLI and tests.
+	GASURL string
+	// GASURLs is the Android deployment pool. Each URL is tried in turn, so
+	// one slow or broken Apps Script deployment does not kill the tunnel.
+	GASURLs     []string
 	GASHost     string
 	FrontDomain string
 	GoogleIP    string
@@ -1525,6 +1567,8 @@ type Stats struct {
 type Client struct {
 	cfg   Config
 	http  *http.Client
+	urls  []string
+	next  atomic.Uint32
 	stats Stats
 
 	mu       sync.Mutex
@@ -1543,12 +1587,31 @@ func New(cfg Config) (*Client, error) {
 	if cfg.AuthKey == "" {
 		return nil, errors.New("AUTH_KEY is required")
 	}
-	if cfg.GASURL == "" {
-		return nil, errors.New("deployment URL is required")
+	urls := make([]string, 0, len(cfg.GASURLs)+1)
+	urls = append(urls, cfg.GASURLs...)
+	if len(urls) == 0 && cfg.GASURL != "" {
+		urls = append(urls, cfg.GASURL)
 	}
-	if !strings.HasPrefix(cfg.GASURL, "https://") {
-		return nil, errors.New("deployment URL must use https")
+	seen := make(map[string]struct{}, len(urls))
+	clean := urls[:0]
+	for _, raw := range urls {
+		u := strings.TrimSpace(raw)
+		if u == "" {
+			continue
+		}
+		if !strings.HasPrefix(u, "https://") {
+			return nil, fmt.Errorf("deployment URL must use https: %s", u)
+		}
+		if _, ok := seen[u]; ok {
+			continue
+		}
+		seen[u] = struct{}{}
+		clean = append(clean, u)
 	}
+	if len(clean) == 0 {
+		return nil, errors.New("at least one deployment URL is required")
+	}
+	urls = clean
 	if cfg.GASHost == "" {
 		cfg.GASHost = "script.google.com"
 	}
@@ -1558,7 +1621,7 @@ func New(cfg Config) (*Client, error) {
 	if cfg.GoogleIP == "" {
 		cfg.GoogleIP = "216.239.38.120"
 	}
-	c := &Client{cfg: cfg}
+	c := &Client{cfg: cfg, urls: urls}
 	if cfg.HTTP != nil {
 		c.http = cfg.HTTP
 	} else {
@@ -1654,6 +1717,7 @@ func (c *Client) Close() error {
 	for _, s := range sessions {
 		s.close()
 	}
+	c.http.CloseIdleConnections()
 	return nil
 }
 
@@ -1715,7 +1779,11 @@ func (c *Client) dropSession(s *Session) {
 }
 
 func (c *Client) roundTrip(ctx context.Context, sid string, items []proto.Item) ([]wire.Frame, error) {
-	c.stats.Calls.Add(1)
+	if items == nil {
+		// encoding/json writes a nil slice as null. Apps Script requires an
+		// array for "q", so an idle downlink poll must send [] not null.
+		items = []proto.Item{}
+	}
 	t := time.Now().Unix()
 	req := proto.ClientRequest{
 		V: 1,
@@ -1728,7 +1796,36 @@ func (c *Client) roundTrip(ctx context.Context, sid string, items []proto.Item) 
 	if err != nil {
 		return nil, err
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.GASURL, strings.NewReader(string(body)))
+	var lastErr error
+	for attempt := 0; attempt < len(c.urls); attempt++ {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		u := c.nextURL()
+		frames, err := c.postOnce(ctx, u, sid, body)
+		if err == nil {
+			return frames, nil
+		}
+		lastErr = err
+		c.noteError(err)
+	}
+	if lastErr == nil {
+		lastErr = errors.New("no relay endpoint")
+	}
+	return nil, lastErr
+}
+
+func (c *Client) nextURL() string {
+	if len(c.urls) == 1 {
+		return c.urls[0]
+	}
+	n := c.next.Add(1) - 1
+	return c.urls[int(n)%len(c.urls)]
+}
+
+func (c *Client) postOnce(ctx context.Context, gasURL, sid string, body []byte) ([]wire.Frame, error) {
+	c.stats.Calls.Add(1)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, gasURL, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, err
 	}
@@ -2232,13 +2329,14 @@ import (
 )
 
 type mobileConfig struct {
-	GASURL      string `json:"gas_url"`
-	GASHost     string `json:"gas_host"`
-	FrontDomain string `json:"front_domain"`
-	GoogleIP    string `json:"google_ip"`
-	AuthKey     string `json:"auth_key"`
-	E2EKey      string `json:"e2e_key"`
-	ListenPort  int    `json:"listen_port"`
+	GASURL      string   `json:"gas_url"`
+	GASURLs     []string `json:"gas_urls"`
+	GASHost     string   `json:"gas_host"`
+	FrontDomain string   `json:"front_domain"`
+	GoogleIP    string   `json:"google_ip"`
+	AuthKey     string   `json:"auth_key"`
+	E2EKey      string   `json:"e2e_key"`
+	ListenPort  int      `json:"listen_port"`
 }
 
 type mobileEngine struct {
@@ -2293,18 +2391,32 @@ func xhr_start_json(raw *C.char) *C.char {
 	if cfg.ListenPort < 1024 || cfg.ListenPort > 65535 {
 		cfg.ListenPort = 1080
 	}
-	if cfg.AuthKey == "" || cfg.E2EKey == "" || cfg.GASURL == "" {
+	if cfg.AuthKey == "" || cfg.E2EKey == "" {
 		return C.CString("missing configuration")
 	}
-	if strings.HasPrefix(cfg.GASURL, "AKfycb") {
-		cfg.GASURL = "https://script.google.com/macros/s/" + cfg.GASURL + "/exec"
+	urls := append([]string{}, cfg.GASURLs...)
+	if len(urls) == 0 && cfg.GASURL != "" {
+		urls = append(urls, cfg.GASURL)
+	}
+	if len(urls) == 0 {
+		return C.CString("missing deployment URL")
+	}
+	if len(urls) > 5 {
+		return C.CString("use at most 5 deployments")
+	}
+	for i, u := range urls {
+		u = strings.TrimSpace(u)
+		if strings.HasPrefix(u, "AKfycb") {
+			u = "https://script.google.com/macros/s/" + u + "/exec"
+		}
+		urls[i] = u
 	}
 	key, err := wire.ParseKey(cfg.E2EKey)
 	if err != nil {
 		return C.CString("invalid tunnel key")
 	}
 	client, err := tunnel.New(tunnel.Config{
-		GASURL:      cfg.GASURL,
+		GASURLs:     urls,
 		GASHost:     cfg.GASHost,
 		FrontDomain: cfg.FrontDomain,
 		GoogleIP:    cfg.GoogleIP,
@@ -2427,7 +2539,7 @@ func xhr_version() *C.char {
 	return C.CString(versionString)
 }
 
-const versionString = "1.0.0"
+const versionString = "1.0.1"
 
 func probeJSON(ok bool, ms int, msg, cn, issuer, alpn string) *C.char {
 	b, _ := json.Marshal(map[string]any{

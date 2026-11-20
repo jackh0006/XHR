@@ -37,6 +37,9 @@ func (f *fakeRelay) handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad mac", http.StatusUnauthorized)
 		return
 	}
+	if req.Q == nil {
+		f.t.Errorf("request q was null; Apps Script requires []")
+	}
 	f.mu.Lock()
 	f.calls++
 	f.mu.Unlock()
@@ -184,4 +187,45 @@ func TestClientRejectsShortKey(t *testing.T) {
 	if err == nil {
 		t.Fatal("short key accepted")
 	}
+}
+
+func TestClientFailsOverAcrossDeployments(t *testing.T) {
+	key, err := wire.ParseKey(testKeyHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	relay := &fakeRelay{t: t, key: key}
+	good := httptest.NewTLSServer(http.HandlerFunc(relay.handler))
+	defer good.Close()
+	bad := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "down", http.StatusInternalServerError)
+	}))
+	defer bad.Close()
+
+	c, err := New(Config{
+		GASURLs: []string{bad.URL, good.URL},
+		AuthKey: "auth",
+		Key:     key,
+		HTTP:    good.Client(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	conn, err := c.Open("example.com", 443)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Write([]byte("failover")); err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, len("failover"))
+	if _, err := io.ReadFull(conn, buf); err != nil {
+		t.Fatal(err)
+	}
+	if string(buf) != "failover" {
+		t.Fatalf("got %q", buf)
+	}
+	_ = conn.Close()
 }

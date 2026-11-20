@@ -198,6 +198,11 @@ fun SettingsScreen(
             Spacer(Modifier.height(6.dp))
             StatLine("Engine", if (XhrState.flow.value.running) "running" else "idle", XhrColors.Green)
             StatLine("Protocol", "XHR v1 · AES-256-GCM", XhrColors.Blue)
+            StatLine(
+                "Deployments",
+                "${config.activeDeploymentCount()} of ${config.deploymentUrls().size} active",
+                XhrColors.Blue,
+            )
             StatLine("UDP / QUIC", "not supported", XhrColors.Red)
             StatLine("Apps Script calls today", Format.number(daily.calls), XhrColors.Yellow)
         }

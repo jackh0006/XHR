@@ -14,7 +14,23 @@
  * Optional:
  *   MAX_ITEMS     default 64
  *   MAX_BYTES     default 262144
+ *
+ * There are two ways to configure this file:
+ *
+ * 1. Recommended: leave CONFIG empty and set Script Properties:
+ *      AUTH_KEY, EXIT_URL, EXIT_HMAC, MAX_ITEMS, MAX_BYTES
+ *
+ * 2. For a quick test: fill CONFIG below. Values in CONFIG override
+ *    Script Properties. Do not publish a file with real values in CONFIG.
  */
+
+var CONFIG = {
+  // AUTH_KEY: "64-character hex secret",
+  // EXIT_URL: "https://your-worker.workers.dev/relay",
+  // EXIT_HMAC: "64-character hex secret",
+  // MAX_ITEMS: 64,
+  // MAX_BYTES: 262144
+};
 
 var DEFAULTS = { MAX_ITEMS: 64, MAX_BYTES: 262144 };
 
@@ -98,6 +114,10 @@ function _json(obj) {
 }
 
 function _prop(name) {
+  var embedded = CONFIG[name];
+  if (embedded !== undefined && embedded !== null && embedded !== "") {
+    return String(embedded);
+  }
   return PropertiesService.getScriptProperties().getProperty(name) || "";
 }
 

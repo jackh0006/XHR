@@ -42,7 +42,11 @@ const (
 
 // Config describes one XHR client.
 type Config struct {
-	GASURL      string
+	// GASURL is kept for the single-deployment CLI and tests.
+	GASURL string
+	// GASURLs is the Android deployment pool. Each URL is tried in turn, so
+	// one slow or broken Apps Script deployment does not kill the tunnel.
+	GASURLs     []string
 	GASHost     string
 	FrontDomain string
 	GoogleIP    string
@@ -68,6 +72,8 @@ type Stats struct {
 type Client struct {
 	cfg   Config
 	http  *http.Client
+	urls  []string
+	next  atomic.Uint32
 	stats Stats
 
 	mu       sync.Mutex
@@ -86,12 +92,31 @@ func New(cfg Config) (*Client, error) {
 	if cfg.AuthKey == "" {
 		return nil, errors.New("AUTH_KEY is required")
 	}
-	if cfg.GASURL == "" {
-		return nil, errors.New("deployment URL is required")
+	urls := make([]string, 0, len(cfg.GASURLs)+1)
+	urls = append(urls, cfg.GASURLs...)
+	if len(urls) == 0 && cfg.GASURL != "" {
+		urls = append(urls, cfg.GASURL)
 	}
-	if !strings.HasPrefix(cfg.GASURL, "https://") {
-		return nil, errors.New("deployment URL must use https")
+	seen := make(map[string]struct{}, len(urls))
+	clean := urls[:0]
+	for _, raw := range urls {
+		u := strings.TrimSpace(raw)
+		if u == "" {
+			continue
+		}
+		if !strings.HasPrefix(u, "https://") {
+			return nil, fmt.Errorf("deployment URL must use https: %s", u)
+		}
+		if _, ok := seen[u]; ok {
+			continue
+		}
+		seen[u] = struct{}{}
+		clean = append(clean, u)
 	}
+	if len(clean) == 0 {
+		return nil, errors.New("at least one deployment URL is required")
+	}
+	urls = clean
 	if cfg.GASHost == "" {
 		cfg.GASHost = "script.google.com"
 	}
@@ -101,7 +126,7 @@ func New(cfg Config) (*Client, error) {
 	if cfg.GoogleIP == "" {
 		cfg.GoogleIP = "216.239.38.120"
 	}
-	c := &Client{cfg: cfg}
+	c := &Client{cfg: cfg, urls: urls}
 	if cfg.HTTP != nil {
 		c.http = cfg.HTTP
 	} else {
@@ -197,6 +222,7 @@ func (c *Client) Close() error {
 	for _, s := range sessions {
 		s.close()
 	}
+	c.http.CloseIdleConnections()
 	return nil
 }
 
@@ -258,7 +284,11 @@ func (c *Client) dropSession(s *Session) {
 }
 
 func (c *Client) roundTrip(ctx context.Context, sid string, items []proto.Item) ([]wire.Frame, error) {
-	c.stats.Calls.Add(1)
+	if items == nil {
+		// encoding/json writes a nil slice as null. Apps Script requires an
+		// array for "q", so an idle downlink poll must send [] not null.
+		items = []proto.Item{}
+	}
 	t := time.Now().Unix()
 	req := proto.ClientRequest{
 		V: 1,
@@ -271,7 +301,36 @@ func (c *Client) roundTrip(ctx context.Context, sid string, items []proto.Item) 
 	if err != nil {
 		return nil, err
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.GASURL, strings.NewReader(string(body)))
+	var lastErr error
+	for attempt := 0; attempt < len(c.urls); attempt++ {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		u := c.nextURL()
+		frames, err := c.postOnce(ctx, u, sid, body)
+		if err == nil {
+			return frames, nil
+		}
+		lastErr = err
+		c.noteError(err)
+	}
+	if lastErr == nil {
+		lastErr = errors.New("no relay endpoint")
+	}
+	return nil, lastErr
+}
+
+func (c *Client) nextURL() string {
+	if len(c.urls) == 1 {
+		return c.urls[0]
+	}
+	n := c.next.Add(1) - 1
+	return c.urls[int(n)%len(c.urls)]
+}
+
+func (c *Client) postOnce(ctx context.Context, gasURL, sid string, body []byte) ([]wire.Frame, error) {
+	c.stats.Calls.Add(1)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, gasURL, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, err
 	}

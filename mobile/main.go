@@ -27,13 +27,14 @@ import (
 )
 
 type mobileConfig struct {
-	GASURL      string `json:"gas_url"`
-	GASHost     string `json:"gas_host"`
-	FrontDomain string `json:"front_domain"`
-	GoogleIP    string `json:"google_ip"`
-	AuthKey     string `json:"auth_key"`
-	E2EKey      string `json:"e2e_key"`
-	ListenPort  int    `json:"listen_port"`
+	GASURL      string   `json:"gas_url"`
+	GASURLs     []string `json:"gas_urls"`
+	GASHost     string   `json:"gas_host"`
+	FrontDomain string   `json:"front_domain"`
+	GoogleIP    string   `json:"google_ip"`
+	AuthKey     string   `json:"auth_key"`
+	E2EKey      string   `json:"e2e_key"`
+	ListenPort  int      `json:"listen_port"`
 }
 
 type mobileEngine struct {
@@ -88,18 +89,32 @@ func xhr_start_json(raw *C.char) *C.char {
 	if cfg.ListenPort < 1024 || cfg.ListenPort > 65535 {
 		cfg.ListenPort = 1080
 	}
-	if cfg.AuthKey == "" || cfg.E2EKey == "" || cfg.GASURL == "" {
+	if cfg.AuthKey == "" || cfg.E2EKey == "" {
 		return C.CString("missing configuration")
 	}
-	if strings.HasPrefix(cfg.GASURL, "AKfycb") {
-		cfg.GASURL = "https://script.google.com/macros/s/" + cfg.GASURL + "/exec"
+	urls := append([]string{}, cfg.GASURLs...)
+	if len(urls) == 0 && cfg.GASURL != "" {
+		urls = append(urls, cfg.GASURL)
+	}
+	if len(urls) == 0 {
+		return C.CString("missing deployment URL")
+	}
+	if len(urls) > 5 {
+		return C.CString("use at most 5 deployments")
+	}
+	for i, u := range urls {
+		u = strings.TrimSpace(u)
+		if strings.HasPrefix(u, "AKfycb") {
+			u = "https://script.google.com/macros/s/" + u + "/exec"
+		}
+		urls[i] = u
 	}
 	key, err := wire.ParseKey(cfg.E2EKey)
 	if err != nil {
 		return C.CString("invalid tunnel key")
 	}
 	client, err := tunnel.New(tunnel.Config{
-		GASURL:      cfg.GASURL,
+		GASURLs:     urls,
 		GASHost:     cfg.GASHost,
 		FrontDomain: cfg.FrontDomain,
 		GoogleIP:    cfg.GoogleIP,
@@ -222,7 +237,7 @@ func xhr_version() *C.char {
 	return C.CString(versionString)
 }
 
-const versionString = "1.0.0"
+const versionString = "1.0.1"
 
 func probeJSON(ok bool, ms int, msg, cn, issuer, alpn string) *C.char {
 	b, _ := json.Marshal(map[string]any{

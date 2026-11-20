@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +37,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,7 +61,26 @@ fun SetupScreen(
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
-    var gas by remember { mutableStateOf(initial.gasUrl) }
+    var gasLines by remember {
+        mutableStateOf(initial.deploymentUrls().joinToString("\n"))
+    }
+    var useCount by remember {
+        val initialCount = initial.deploymentUrls().size
+        mutableStateOf(
+            if (initial.activeDeployments in 1..initialCount) initial.activeDeployments
+            else initialCount.coerceAtLeast(1)
+        )
+    }
+    val parsedUrls = remember(gasLines) {
+        gasLines.lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .take(5)
+    }
+    LaunchedEffect(parsedUrls.size) {
+        if (useCount > parsedUrls.size) useCount = parsedUrls.size.coerceAtLeast(1)
+    }
     var auth by remember { mutableStateOf(initial.authKey) }
     var e2e by remember { mutableStateOf(initial.e2eKey) }
     var ip by remember { mutableStateOf(initial.googleIp) }
@@ -94,8 +116,8 @@ fun SetupScreen(
             Text("Finish setup", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Paste the four values from your XHR deployment. They stay encrypted " +
-                    "on this phone and are never sent anywhere except your own relay.",
+                "Add one to five Apps Script deployments. They share the same " +
+                    "AUTH_KEY and tunnel key. Everything stays encrypted on this phone.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -113,21 +135,49 @@ fun SetupScreen(
 
         Spacer(Modifier.height(18.dp))
         InputCard(
-            title = "1 · Deployment",
-            help = "The Apps Script Web App ID (starts with AKfycb) or its full /exec URL.",
+            title = "1 · Deployments · 1 to 5",
+            help = "Put one Deployment ID or /exec URL per line. All deployments must " +
+                "use the same AUTH_KEY and exit. They share one Google quota.",
         ) {
             OutlinedTextField(
-                value = gas,
-                onValueChange = { gas = it.trim() },
-                label = { Text("Deployment ID or URL") },
-                singleLine = true,
+                value = gasLines,
+                onValueChange = { gasLines = it },
+                label = { Text("Deployment IDs or URLs · one per line") },
+                minLines = 4,
+                maxLines = 6,
                 modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 trailingIcon = {
                     PasteButton {
-                        clipboard.getText()?.text?.let { gas = it.trim() }
+                        clipboard.getText()?.text?.let { gasLines = it.trim() }
                     }
                 },
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Active deployments: $useCount of ${parsedUrls.size}",
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                (1..5).forEach { n ->
+                    FilterChip(
+                        selected = useCount == n,
+                        onClick = { useCount = n },
+                        enabled = n <= parsedUrls.size,
+                        label = { Text("$n") },
+                    )
+                }
+            }
+            Text(
+                "Start with 2 active deployments. Use 1 if Apps Script quota is tight. " +
+                    "Five only helps failover or separate Google accounts.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -250,8 +300,12 @@ fun SetupScreen(
         Spacer(Modifier.height(18.dp))
         Button(
             onClick = {
+                val urls = parsedUrls
+                val active = if (urls.isEmpty()) 0 else useCount.coerceIn(1, urls.size)
                 val cfg = initial.copy(
-                    gasUrl = gas,
+                    gasUrl = urls.firstOrNull() ?: "",
+                    extraGasUrls = urls.drop(1).take(4),
+                    activeDeployments = if (active == urls.size) 0 else active,
                     authKey = auth,
                     e2eKey = e2e,
                     googleIp = ip,

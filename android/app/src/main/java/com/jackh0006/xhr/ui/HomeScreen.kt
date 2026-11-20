@@ -308,6 +308,12 @@ fun HomeScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        "${config.activeDeploymentCount()}/${config.deploymentUrls().size} deployments",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 if (daily.limitBytes > 0) {
                     Spacer(Modifier.height(10.dp))

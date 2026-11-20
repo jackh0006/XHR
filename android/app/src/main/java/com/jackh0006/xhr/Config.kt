@@ -21,6 +21,8 @@ enum class SplitMode { ALL, ONLY, EXCEPT }
 
 data class XhrConfig(
     var gasUrl: String = "",
+    var extraGasUrls: List<String> = emptyList(),
+    var activeDeployments: Int = 0,
     var authKey: String = "",
     var e2eKey: String = "",
     var googleIp: String = "216.239.38.120",
@@ -33,20 +35,36 @@ data class XhrConfig(
     var dailyLimitMb: Int = 0,
     var showSystemApps: Boolean = false,
 ) {
-    fun resolvedUrl(): String {
-        val raw = gasUrl.trim()
-        if (raw.startsWith("AKfycb")) {
-            return "https://script.google.com/macros/s/$raw/exec"
-        }
-        if (raw.startsWith("https://script.google.com/macros/s/") && !raw.endsWith("/exec")) {
-            return raw.trimEnd('/') + "/exec"
-        }
-        return raw
+    fun deploymentUrls(): List<String> =
+        (listOf(gasUrl) + extraGasUrls)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .take(5)
+
+    fun activeUrls(): List<String> {
+        val all = deploymentUrls()
+        if (all.isEmpty()) return all
+        val count = if (activeDeployments <= 0) all.size
+        else activeDeployments.coerceIn(1, all.size)
+        return all.take(count)
     }
 
+    fun activeDeploymentCount(): Int = activeUrls().size
+
+    fun resolvedUrl(): String =
+        deploymentUrls().firstOrNull()?.let { resolveDeployment(it) } ?: ""
+
+    fun resolvedUrls(): List<String> = activeUrls().map { resolveDeployment(it) }
+
     fun validationError(): String? = when {
-        gasUrl.isBlank() -> "Deployment ID or URL is required"
-        !resolvedUrl().startsWith("https://") -> "Deployment URL must start with https://"
+        deploymentUrls().isEmpty() -> "Add at least one Deployment ID or URL"
+        deploymentUrls().size > 5 -> "Use at most 5 deployments"
+        deploymentUrls().any { !resolveDeployment(it).startsWith("https://") } ->
+            "Every deployment must be a Deployment ID or an https URL"
+        activeDeployments < 0 -> "Active deployment count cannot be negative"
+        activeDeployments > deploymentUrls().size ->
+            "Active deployment count is larger than the number of deployments"
         authKey.isBlank() -> "AUTH_KEY is required"
         e2eKey.length != 64 || e2eKey.any { it !in "0123456789abcdefABCDEF" } ->
             "Tunnel key must be exactly 64 hex characters"
@@ -59,7 +77,8 @@ data class XhrConfig(
     }
 
     fun engineJson(): String = JSONObject().apply {
-        put("gas_url", resolvedUrl())
+        put("gas_url", resolvedUrls().firstOrNull() ?: "")
+        put("gas_urls", JSONArray(resolvedUrls()))
         put("gas_host", "script.google.com")
         put("front_domain", frontDomain.trim().ifBlank { "www.google.com" })
         put("google_ip", googleIp.trim())
@@ -70,6 +89,8 @@ data class XhrConfig(
 
     fun toJson(): String = JSONObject().apply {
         put("gas", gasUrl)
+        put("deployments", JSONArray(deploymentUrls()))
+        put("active", activeDeployments)
         put("auth", authKey)
         put("e2e", e2eKey)
         put("ip", googleIp)
@@ -84,14 +105,40 @@ data class XhrConfig(
     }.toString()
 
     companion object {
+        fun resolveDeployment(raw: String): String {
+            val value = raw.trim()
+            if (value.startsWith("AKfycb")) {
+                return "https://script.google.com/macros/s/$value/exec"
+            }
+            if (value.startsWith("https://script.google.com/macros/s/") &&
+                !value.endsWith("/exec")
+            ) {
+                return value.trimEnd('/') + "/exec"
+            }
+            return value
+        }
+
         fun fromJson(raw: String): XhrConfig {
             val o = JSONObject(raw)
             val apps = mutableSetOf<String>()
             o.optJSONArray("apps")?.let { arr ->
                 for (i in 0 until arr.length()) apps += arr.optString(i)
             }
+            val deployments = mutableListOf<String>()
+            o.optJSONArray("deployments")?.let { arr ->
+                for (i in 0 until arr.length()) {
+                    val value = arr.optString(i).trim()
+                    if (value.isNotEmpty()) deployments += value
+                }
+            }
+            if (deployments.isEmpty()) {
+                val old = o.optString("gas", "").trim()
+                if (old.isNotEmpty()) deployments += old
+            }
             return XhrConfig(
-                gasUrl = o.optString("gas", ""),
+                gasUrl = deployments.firstOrNull() ?: "",
+                extraGasUrls = deployments.drop(1).take(4),
+                activeDeployments = o.optInt("active", 0),
                 authKey = o.optString("auth", ""),
                 e2eKey = o.optString("e2e", ""),
                 googleIp = o.optString("ip", "216.239.38.120"),

@@ -24,7 +24,7 @@ client (SOCKS5 / TUN)
 |---|---|---|
 | **1** | **Cloudflare Worker + Durable Objects** | Recommended free path; complete guide |
 | **2** | Google Cloud Run | Optional; needs a billing account/card |
-| **3** | Android app (TUN + SOCKS5) | **XHR 1.0.0 APK**, arm64, Huawei Y9 2019 reference device |
+| **3** | Android app (TUN + SOCKS5) | **XHR 1.0.1 APK**, arm64, Huawei Y9 2019 reference device |
 
 The Linux preview client in `cmd/xhr-client` is still useful for testing the
 relay from a computer.
@@ -80,16 +80,17 @@ exit always sees the destination. Traffic analysis is still possible.
 
 ## Download the Android app
 
-**[XHR 1.0.0 arm64 APK](https://github.com/jackh0006/XHR/releases/latest)**
+**[XHR 1.0.1 arm64 APK](https://github.com/jackh0006/XHR/releases/latest)**
 
-SHA-256: `f233a90f301cb6e528f57f6af545fcf9d021fef138611b8566c4f5e1864cd087`
+SHA-256: `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
 
-> **Upgrading from 0.1.0?** Redeploy the exit from tag `v1.0.0`. The 1.0.0
-> client waits for the new `open_ok` acknowledgement; the old exit binary will
-> time out. `gas/Code.gs` is unchanged.
+> **Upgrading?** Redeploy the exit from tag `v1.0.1`. The 1.0.x client waits
+> for the `open_ok` acknowledgement; the old 0.1.0 exit binary will time out.
 
 * One switch for all TCP apps (**TUN**), or a local **SOCKS5** listener for
   v2rayNG.
+* **1–5 Apps Script deployments** per profile, with active-count selection,
+  round-robin, and failover.
 * Real upload/download totals and live speed in the status-bar notification.
 * Per-app routing (all / only / except).
 * Google edge lab with real TLS/SNI latency results.

@@ -20,13 +20,14 @@ import (
 )
 
 type Config struct {
-	GASURL      string `json:"gas_url"`
-	GASHost     string `json:"gas_host"`
-	FrontDomain string `json:"front_domain"`
-	GoogleIP    string `json:"google_ip"`
-	AuthKey     string `json:"auth_key"`
-	E2EKey      string `json:"e2e_key"`
-	Listen      string `json:"listen"`
+	GASURL      string   `json:"gas_url"`
+	GASURLs     []string `json:"gas_urls"`
+	GASHost     string   `json:"gas_host"`
+	FrontDomain string   `json:"front_domain"`
+	GoogleIP    string   `json:"google_ip"`
+	AuthKey     string   `json:"auth_key"`
+	E2EKey      string   `json:"e2e_key"`
+	Listen      string   `json:"listen"`
 }
 
 func main() {
@@ -41,8 +42,12 @@ func main() {
 	if err != nil {
 		log.Fatal("e2e_key must be 64 hex characters")
 	}
+	urls := append([]string{}, cfg.GASURLs...)
+	if len(urls) == 0 && cfg.GASURL != "" {
+		urls = append(urls, cfg.GASURL)
+	}
 	c, err := tunnel.New(tunnel.Config{
-		GASURL:      cfg.GASURL,
+		GASURLs:     urls,
 		GASHost:     cfg.GASHost,
 		FrontDomain: cfg.FrontDomain,
 		GoogleIP:    cfg.GoogleIP,
@@ -95,14 +100,27 @@ func loadConfig(path string) (Config, error) {
 	if cfg.AuthKey == "" || cfg.E2EKey == "" {
 		return cfg, errors.New("auth_key and e2e_key are required")
 	}
-	if !strings.HasPrefix(cfg.GASURL, "https://") {
-		id := strings.TrimSpace(cfg.GASURL)
-		if strings.HasPrefix(id, "AKfycb") {
-			cfg.GASURL = "https://script.google.com/macros/s/" + id + "/exec"
-		} else {
-			return cfg, errors.New("gas_url must be an https URL or a deployment ID")
-		}
+	urls := append([]string{}, cfg.GASURLs...)
+	if len(urls) == 0 && cfg.GASURL != "" {
+		urls = append(urls, cfg.GASURL)
 	}
+	if len(urls) == 0 {
+		return cfg, errors.New("gas_url or gas_urls is required")
+	}
+	if len(urls) > 5 {
+		return cfg, errors.New("use at most 5 deployments")
+	}
+	for i, raw := range urls {
+		value := strings.TrimSpace(raw)
+		if strings.HasPrefix(value, "AKfycb") {
+			value = "https://script.google.com/macros/s/" + value + "/exec"
+		}
+		if !strings.HasPrefix(value, "https://") {
+			return cfg, errors.New("every deployment must be an https URL or deployment ID")
+		}
+		urls[i] = value
+	}
+	cfg.GASURLs = urls
 	return cfg, nil
 }
 

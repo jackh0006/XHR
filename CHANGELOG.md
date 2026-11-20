@@ -4,6 +4,18 @@ All notable changes to XHR are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-11-20
+
+Download stability fix.
+
+### Fixed
+
+* Idle downlink long-polls sent `"q":null`. Apps Script requires an array and
+  rejected those polls with `{"e":"bad request"}`. The client now sends `"q":[]`.
+  Uploads were unaffected, which made browsing appear to work while downlink
+  polling kept failing.
+* Added a regression test that rejects a null `q` field.
+
 ## [1.0.0] - 2026-11-20
 
 Android client release. The Apps Script relay is unchanged. The exit and client
@@ -81,5 +93,6 @@ Initial relay release.
 * Cloud Run phase 1 runs a single instance to keep sessions in memory.
 * Cloudflare Durable Objects may require a paid Workers plan.
 
+[1.0.1]: https://github.com/jackh0006/XHR/releases/tag/v1.0.1
 [1.0.0]: https://github.com/jackh0006/XHR/releases/tag/v1.0.0
 [0.1.0]: https://github.com/jackh0006/XHR/releases/tag/v0.1.0

@@ -36,8 +36,8 @@ Cloudflare, finish **[GUIDE-CLOUDFLARE.md](GUIDE-CLOUDFLARE.md)** first.
 
 1. On the phone, open
    <https://github.com/jackh0006/XHR/releases/latest>.
-2. Download `XHR-1.0.0-arm64-v8a.apk`.
-   SHA-256: `f233a90f301cb6e528f57f6af545fcf9d021fef138611b8566c4f5e1864cd087`
+2. Download `XHR-1.0.1-arm64-v8a.apk`.
+   SHA-256: `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
 3. Open **Files → Downloads**, tap the APK.
 4. Android asks to allow installs from this source. Allow it for Files or
    Chrome, then tap **Install**.
@@ -53,7 +53,7 @@ The APK contains **arm64-v8a** native code only. It is built for the Huawei Y9
 ## 2 — First setup
 
 1. Open **XHR**.
-2. The setup page asks for four values.
+2. The setup page asks for your deployment IDs, AUTH_KEY, tunnel key, and edge IP.
 3. Paste the **Deployment ID** (or full `/exec` URL).
 4. Paste **AUTH_KEY**.
 5. Paste the **64-character tunnel key**.
