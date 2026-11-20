@@ -63,7 +63,7 @@ export class Session {
     this.env = env;
     this.streams = new Map();
     this.queue = [];
-    this.waiters = [];
+    this.waiters = new Set();
     this.seen = new Map();
     this.keyPromise = importAesKey(env.XHR_E2E_KEY);
     this.closed = false;
@@ -100,7 +100,7 @@ export class Session {
       await this.dispatch(f);
     }
 
-    const frames = await this.collect(POLL_MS);
+    const frames = await this.collect(req.q.length ? 20 : POLL_MS);
     const out = [];
     for (const f of frames) {
       try {
@@ -148,14 +148,15 @@ export class Session {
     if (typeof f.h !== "string" || !f.p) return;
     try {
       const socket = connect({ hostname: f.h, port: Number(f.p) });
+      await socket.opened;
       const writer = socket.writable.getWriter();
       const reader = socket.readable.getReader();
       const st = { socket, writer, reader };
       this.streams.set(id, st);
+      this.enqueue({ o: "open_ok", st: id });
       this.readLoop(id, reader).catch(() => {});
     } catch {
-      this.enqueue({ o: "error", st: id, d: b64encode(new TextEncoder().encode("connect failed")) });
-      this.enqueue({ o: "close", st: id });
+      this.enqueue({ o: "open_err", st: id, d: b64encode(new TextEncoder().encode("connect failed")) });
     }
   }
 
@@ -212,7 +213,7 @@ export class Session {
       return;
     }
     this.queue.push(frame);
-    const waiter = this.waiters.shift();
+    const waiter = this.waiters.values().next().value;
     if (waiter) waiter();
   }
 
@@ -221,10 +222,11 @@ export class Session {
     return new Promise((resolve) => {
       const done = () => {
         clearTimeout(timer);
+        this.waiters.delete(done);
         resolve(this.drain());
       };
       const timer = setTimeout(done, ms);
-      this.waiters.push(done);
+      this.waiters.add(done);
     });
   }
 

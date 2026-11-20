@@ -4,6 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
+| 1.x | ✅ |
 | 0.x | ✅ |
 
 ## Reporting a vulnerability
@@ -29,6 +30,8 @@ and a fix or written assessment within **14 days**.
 | DPI resistance | uTLS Chrome fingerprint, HTTP/2, SNI `www.google.com` |
 | Secrets at rest | Script Properties (GAS), environment variables (Cloud Run / Worker) |
 | Loopback only | The client SOCKS listener binds `127.0.0.1` |
+| Android profile at rest | AES-256-GCM key in Android Keystore; backup disabled |
+| Android VPN scope | XHR excludes itself from its own TUN; per-app rules are explicit |
 
 ## Threat model
 
@@ -70,6 +73,26 @@ your GAS quota. A leaked `EXIT_HMAC` lets others use your exit.
 The relay does not log destinations or keys. Cloud Run and Cloudflare can log
 request metadata at the platform level; disable or limit provider logging if
 that matters to you.
+
+The Android app keeps a bounded in-memory log for the user. It includes the
+destination host and port of each stream. It is not uploaded. `POST_NOTIFICATIONS`
+is used only for the foreground status and live traffic counters.
+
+## Android specifics
+
+* The APK contains arm64 native code and a source-built
+  `hev-socks5-tunnel` for `VpnService`.
+* XHR's own package is excluded from its TUN. In SOCKS5 mode the user must
+  exclude XHR from v2rayNG's per-app VPN to avoid a routing loop.
+* The local SOCKS5 server has no authentication, but it binds only
+  `127.0.0.1`; another app on the same phone can use it. Do not expose it with
+  a port forward.
+* UDP ASSOCIATE is refused. QUIC fails by design and apps fall back to TCP.
+* If Android Keystore is unavailable on a broken device, the app falls back to
+  its private, sandboxed data directory so the profile is not lost. This is
+  weaker than Keystore; reinstall or reset the key if that matters.
+* The APK is signed with the XHR release key. Verify the SHA-256 published on
+  the release page.
 
 ## Scope
 

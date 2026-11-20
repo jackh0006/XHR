@@ -2,6 +2,8 @@
 package main
 
 import (
+	"context"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"log"
@@ -23,8 +25,11 @@ const (
 	maxStreams    = 64
 	sessionIdle   = 5 * time.Minute
 	pollWait      = 15 * time.Second
+	uploadWait    = 20 * time.Millisecond
+	coalesceWait  = 5 * time.Millisecond
 	maxFrameData  = 900
-	downQueueSize = 256
+	downQueueSize = 512
+	dialTimeout   = 12 * time.Second
 )
 
 type exitServer struct {
@@ -35,11 +40,12 @@ type exitServer struct {
 }
 
 type session struct {
-	sid     string
+	sid string
+
 	mu      sync.Mutex
-	pollMu  sync.Mutex
 	down    chan wire.Frame
 	streams map[uint32]*stream
+	opening map[uint32]struct{}
 	seen    map[string]int64
 	closed  bool
 	last    time.Time
@@ -103,7 +109,7 @@ func (e *exitServer) handleRelay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req proto.ExitRequest
-	if err := json.Unmarshal(body, &req); err != nil || req.V != 1 || len(req.S) < 8 {
+	if err := json.Unmarshal(body, &req); err != nil || req.V != 1 || !validSID(req.S) {
 		writeJSON(w, proto.Response{E: "bad request"})
 		return
 	}
@@ -132,7 +138,13 @@ func (e *exitServer) handleRelay(w http.ResponseWriter, r *http.Request) {
 		s.dispatch(f)
 	}
 
-	frames := s.collect(pollWait)
+	// An upload request returns quickly so the client can pipeline the next
+	// batch. A request with no uplink is the standing downlink long-poll.
+	wait := pollWait
+	if len(req.Q) > 0 {
+		wait = uploadWait
+	}
+	frames := s.collect(r.Context(), wait)
 	resp := proto.Response{R: make([]proto.Item, 0, len(frames))}
 	for _, f := range frames {
 		n, x, err := wire.Seal(e.key, req.S, f, 512)
@@ -142,6 +154,14 @@ func (e *exitServer) handleRelay(w http.ResponseWriter, r *http.Request) {
 		resp.R = append(resp.R, proto.Item{N: n, X: x})
 	}
 	writeJSON(w, resp)
+}
+
+func validSID(s string) bool {
+	if len(s) != 16 {
+		return false
+	}
+	_, err := hex.DecodeString(s)
+	return err == nil
 }
 
 func (e *exitServer) getSession(sid string) *session {
@@ -156,12 +176,13 @@ func (e *exitServer) getSession(sid string) *session {
 			sid:     sid,
 			down:    make(chan wire.Frame, downQueueSize),
 			streams: map[uint32]*stream{},
+			opening: map[uint32]struct{}{},
 			seen:    map[string]int64{},
 			last:    time.Now(),
 		}
 		e.sessions[sid] = s
 	}
-	s.last = time.Now()
+	s.touch()
 	return s
 }
 
@@ -172,13 +193,22 @@ func (e *exitServer) cleanupLoop() {
 		now := time.Now()
 		e.mu.Lock()
 		for sid, s := range e.sessions {
-			if now.Sub(s.last) > sessionIdle {
+			s.mu.Lock()
+			idle := now.Sub(s.last) > sessionIdle
+			s.mu.Unlock()
+			if idle {
 				s.shutdown()
 				delete(e.sessions, sid)
 			}
 		}
 		e.mu.Unlock()
 	}
+}
+
+func (s *session) touch() {
+	s.mu.Lock()
+	s.last = time.Now()
+	s.mu.Unlock()
 }
 
 func (s *session) seenFrame(r string) bool {
@@ -203,7 +233,7 @@ func (s *session) seenFrame(r string) bool {
 }
 
 func (s *session) dispatch(f wire.Frame) {
-	s.last = time.Now()
+	s.touch()
 	switch f.Op {
 	case "open":
 		s.openStream(f.Stream, f.Host, f.Port)
@@ -219,32 +249,53 @@ func (s *session) openStream(id uint32, host string, port uint16) {
 		return
 	}
 	s.mu.Lock()
-	if s.closed || len(s.streams) >= maxStreams {
+	if s.closed {
 		s.mu.Unlock()
+		return
+	}
+	if len(s.streams)+len(s.opening) >= maxStreams {
+		s.mu.Unlock()
+		s.enqueue(wire.Frame{Op: "open_err", Stream: id, Data: []byte("stream limit")})
 		return
 	}
 	if _, exists := s.streams[id]; exists {
 		s.mu.Unlock()
 		return
 	}
+	if _, exists := s.opening[id]; exists {
+		s.mu.Unlock()
+		return
+	}
+	s.opening[id] = struct{}{}
 	s.mu.Unlock()
 
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(int(port))), 10*time.Second)
-	if err != nil {
-		s.enqueue(wire.Frame{Op: "error", Stream: id, Data: []byte("connect failed")})
-		s.enqueue(wire.Frame{Op: "close", Stream: id})
-		return
-	}
-	st := &stream{id: id, conn: conn, sess: s}
-	s.mu.Lock()
-	if s.closed {
+	go func() {
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(int(port))), dialTimeout)
+		s.mu.Lock()
+		delete(s.opening, id)
+		if err != nil {
+			closed := s.closed
+			s.mu.Unlock()
+			if !closed {
+				s.enqueue(wire.Frame{Op: "open_err", Stream: id, Data: []byte("connect failed")})
+			}
+			return
+		}
+		if s.closed {
+			s.mu.Unlock()
+			_ = conn.Close()
+			return
+		}
+		st := &stream{id: id, conn: conn, sess: s}
+		s.streams[id] = st
+		s.last = time.Now()
 		s.mu.Unlock()
-		_ = conn.Close()
-		return
-	}
-	s.streams[id] = st
-	s.mu.Unlock()
-	go st.readLoop()
+
+		// The acknowledgement is what releases the client's SOCKS/HTTP
+		// handshake, so send it before reading any payload.
+		s.enqueue(wire.Frame{Op: "open_ok", Stream: id})
+		go st.readLoop()
+	}()
 }
 
 func (s *session) writeStream(id uint32, data []byte) {
@@ -254,12 +305,15 @@ func (s *session) writeStream(id uint32, data []byte) {
 	if st == nil || len(data) == 0 {
 		return
 	}
-	_ = st.conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
-	_, _ = st.conn.Write(data)
+	_ = st.conn.SetWriteDeadline(time.Now().Add(20 * time.Second))
+	if _, err := st.conn.Write(data); err != nil {
+		s.closeStream(id)
+	}
 }
 
 func (s *session) closeStream(id uint32) {
 	s.mu.Lock()
+	delete(s.opening, id)
 	st := s.streams[id]
 	delete(s.streams, id)
 	s.mu.Unlock()
@@ -269,6 +323,12 @@ func (s *session) closeStream(id uint32) {
 }
 
 func (s *session) enqueue(f wire.Frame) {
+	s.mu.Lock()
+	closed := s.closed
+	s.mu.Unlock()
+	if closed {
+		return
+	}
 	select {
 	case s.down <- f:
 	case <-time.After(5 * time.Second):
@@ -276,32 +336,33 @@ func (s *session) enqueue(f wire.Frame) {
 	}
 }
 
-func (s *session) collect(wait time.Duration) []wire.Frame {
-	s.pollMu.Lock()
-	defer s.pollMu.Unlock()
-
+// collect is safe to call from several HTTP handlers. Each frame is delivered
+// to exactly one response. A short grace window batches adjacent frames.
+func (s *session) collect(ctx context.Context, wait time.Duration) []wire.Frame {
 	out := make([]wire.Frame, 0, maxItems)
 	timer := time.NewTimer(wait)
 	defer timer.Stop()
-
-	for {
+	select {
+	case f := <-s.down:
+		out = append(out, f)
+	case <-timer.C:
+		return out
+	case <-ctx.Done():
+		return out
+	}
+	grace := time.NewTimer(coalesceWait)
+	defer grace.Stop()
+	for len(out) < maxItems {
 		select {
 		case f := <-s.down:
 			out = append(out, f)
-			// Drain whatever is already queued and return promptly.
-			for len(out) < maxItems {
-				select {
-				case f := <-s.down:
-					out = append(out, f)
-				default:
-					return out
-				}
-			}
+		case <-grace.C:
 			return out
-		case <-timer.C:
+		case <-ctx.Done():
 			return out
 		}
 	}
+	return out
 }
 
 func (s *session) shutdown() {
@@ -313,6 +374,7 @@ func (s *session) shutdown() {
 	s.closed = true
 	streams := s.streams
 	s.streams = map[uint32]*stream{}
+	s.opening = map[uint32]struct{}{}
 	s.mu.Unlock()
 	for _, st := range streams {
 		_ = st.conn.Close()
@@ -337,10 +399,15 @@ func (st *stream) readLoop() {
 			}
 		}
 		if err != nil {
-			st.sess.enqueue(wire.Frame{Op: "close", Stream: st.id})
 			st.sess.mu.Lock()
-			delete(st.sess.streams, st.id)
+			removed := st.sess.streams[st.id] == st
+			if removed {
+				delete(st.sess.streams, st.id)
+			}
 			st.sess.mu.Unlock()
+			if removed {
+				st.sess.enqueue(wire.Frame{Op: "close", Stream: st.id})
+			}
 			_ = st.conn.Close()
 			return
 		}

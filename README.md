@@ -18,9 +18,10 @@ client (SOCKS5 / TUN)
 |---|---|---|
 | **1** | Google Cloud Run | Relay, exit, protocol, and tests in this repository |
 | **2** | Cloudflare Worker + Durable Objects | Worker exit included; deploy guide included |
-| **3** | Android app (TUN + SOCKS5) | Next, after the relay is approved |
+| **3** | Android app (TUN + SOCKS5) | **XHR 1.0.0 APK**, arm64, Huawei Y9 2019 reference device |
 
-The client in `cmd/xhr-client` is a Linux preview for testing the relay.
+The Linux preview client in `cmd/xhr-client` is still useful for testing the
+relay from a computer.
 
 ## Why an exit is required
 
@@ -72,8 +73,26 @@ exit always sees the destination. Traffic analysis is still possible.
 * Hiding from Google and the exit provider at the same time. Whoever exits must
   decrypt.
 
+## Download the Android app
+
+**[XHR 1.0.0 arm64 APK](https://github.com/jackh0006/XHR/releases/latest)**
+
+SHA-256: `389abbeec9f4c39296e65bf87cfa421839258d7f0de3505e1cad16dfcdee1a9f`
+
+* One switch for all TCP apps (**TUN**), or a local **SOCKS5** listener for
+  v2rayNG.
+* Real upload/download totals and live speed in the status-bar notification.
+* Per-app routing (all / only / except).
+* Google edge lab with real TLS/SNI latency results.
+* Live local logs, daily request and data counters, optional daily data cap.
+* About and 14 donation assets.
+* Android Keystore-encrypted profile, no analytics, no telemetry.
+* arm64-v8a only, `minSdk 24`, built and signed with the Huawei Y9 2019 as the reference device.
+
 ## Quick start
 
+* **[Android guide, from 0 to 100](docs/GUIDE-ANDROID.md)**
+* **[On-device test checklist](docs/TEST-CHECKLIST.md)**
 * **[Google-only guide, from 0 to 100](docs/GUIDE-GOOGLE.md)**
 * **[Google + Cloudflare guide](docs/GUIDE-CLOUDFLARE.md)**
 * [Protocol specification](docs/PROTOCOL.md)
@@ -85,9 +104,13 @@ exit always sees the destination. Traffic analysis is still possible.
 gas/Code.gs             Apps Script relay (opaque forwarder)
 cmd/xhr-exit/           Google Cloud Run exit (Go)
 cmd/xhr-client/         Linux SOCKS5 preview client (Go)
+internal/tunnel/        Multiplexed Android/Linux client core
 internal/wire/          AES-256-GCM frames
 internal/proto/         HMAC and request formats
 cloudflare/             Cloudflare Worker exit + Durable Object
+android/                Android app: Compose UI, TUN, SOCKS5, JNI engine
+mobile/                 Go c-shared JNI entry points
+branding/               White/Google-colour X logo and launcher icons
 docs/                   Protocol and step-by-step guides
 ```
 
@@ -95,12 +118,34 @@ docs/                   Protocol and step-by-step guides
 
 ```bash
 go test ./...
+go test -race ./...
 go vet ./...
 go build ./...
+
 cd cloudflare && node --test frames.test.mjs
+cd .. && node --test gas/gas.test.mjs
+
+# Android (needs JDK 17+ and Android SDK 34)
+cd android && ./gradlew :app:assembleRelease
 ```
 
-CI runs all of these on every push.
+GitHub Actions runs the Go tests, Apps Script VM tests, Cloudflare frame tests,
+and an Android `assembleDebug` build on every push.
+
+## Android design notes
+
+* **TUN is real TUN.** `VpnService` creates the interface; the source-built
+  `hev-socks5-tunnel` turns packets into SOCKS5; the Go engine carries them
+  through the relay. XHR excludes its own package from the VPN.
+* **Proxy is a real SOCKS5 server.** The Go engine listens on `127.0.0.1:1080`
+  (loopback only) and performs the same XHR protocol. v2rayNG can use it as a
+  Socks outbound.
+* **DNS stays off the local resolver in TUN mode.** `mapdns` answers with
+  mapped IPs and sends the hostname to the exit over SOCKS.
+* **UDP is refused, not faked.** The SOCKS listener rejects UDP ASSOCIATE, so
+  QUIC fails and browsers fall back to TCP. Apps Script has no UDP transport.
+* **Traffic is counted at the engine.** The notification, Home screen, and
+  daily limit all use the same byte counters.
 
 ## Donate
 

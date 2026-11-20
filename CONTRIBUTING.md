@@ -22,6 +22,7 @@ node --test frames.test.mjs
 node --check worker.js
 cd ..
 node --test gas/gas.test.mjs
+cd android && ./gradlew :app:assembleDebug
 ```
 
 CI runs the same checks. The GAS file is syntax-checked by copying it to a
@@ -32,7 +33,9 @@ temporary `.js` file and running `node --check`.
 * Go: `gofmt`, small functions, explicit errors.
 * JavaScript: ES modules, no dependencies in the Worker beyond
   `cloudflare:sockets`.
-* Protocol changes must update `docs/PROTOCOL.md` and both exits together.
+* Kotlin/Compose: Material 3, U.S. English, no analytics packages.
+* Protocol changes must update `docs/PROTOCOL.md`, both exits, and the Android
+  engine together.
 * User-facing text: short, simple, American English.
 
 ## Commit messages
@@ -51,7 +54,8 @@ Types: `feat`, `fix`, `docs`, `test`, `security`, `refactor`, `ci`.
 - [ ] `go build ./...` succeeds
 - [ ] Node frame tests pass
 - [ ] Worker and GAS syntax checks pass
-- [ ] No secret or personal deployment value is committed
+- [ ] Android `assembleDebug` succeeds
+- [ ] No secret, keystore, or personal deployment value is committed
 - [ ] Protocol docs updated when the frame/request format changes
 
 ## Security issues

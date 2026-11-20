@@ -46,7 +46,7 @@ unchanged.
 
 ```json
 {
-  "o": "open|data|close|error",
+  "o": "open|open_ok|open_err|data|close|error",
   "st": 1,
   "h": "example.com",
   "p": 443,
@@ -56,6 +56,12 @@ unchanged.
   "z": "random padding"
 }
 ```
+
+`open` asks the exit to dial `h:p`. The exit answers with `open_ok` on success
+or `open_err` with a short reason in `d` on failure. The client does not send
+application bytes until `open_ok`, so an app's first write can never be lost
+while the exit is still dialing. `data` carries bytes in either direction.
+`close` releases the stream.
 
 * Key: 32 bytes, shared only by client and exit.
 * Nonce: 12 random bytes per frame, sent outside the ciphertext.
@@ -73,18 +79,26 @@ unchanged.
 ```
 
 Downlink frames use the same key, session id and frame format, with
-`o = "data"` or `o = "close"`.
+`o = "open_ok"`, `o = "open_err"`, `o = "data"`, or `o = "close"`.
 
 ## Long polling
 
-The exit holds an empty poll for up to 20 seconds waiting for downlink data.
+The exit holds an empty poll for up to 15 seconds waiting for downlink data.
 This keeps one GAS `UrlFetchApp` call alive instead of polling every few
 hundred milliseconds, which matters for the 20,000/day free quota.
 
+A request that carries uplink frames returns in about 20 ms after processing
+them. This lets the client pipeline upload batches while a second request
+remains parked as the standing downlink poll. Several HTTP handlers may call
+`collect` at the same time; each frame is delivered to exactly one response.
+
 ## Sessions and streams
 
-* One `s` per client tunnel session (one SOCKS listener or one TUN app session).
-* Many TCP connections share the session through `st` (1..N).
+* One `s` per client tunnel session. The Android engine normally runs one
+  session and creates a second only after 56 concurrent streams.
+* Many TCP connections share the session through `st` (1..N). The exit caps a
+  session at 64 streams and 128 sessions; the client closes an idle session
+  after two minutes.
 * The exit enforces maximum sessions, maximum streams, idle timeouts, and a
   bounded downlink queue.
 * Phase 1 Cloud Run runs a single instance so sessions stay in memory. For
