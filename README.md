@@ -97,10 +97,12 @@ SHA-256: `f233a90f301cb6e528f57f6af545fcf9d021fef138611b8566c4f5e1864cd087`
 
 ## Quick start
 
+* **[Documentation index](docs/README.md)** — every guide and source path
 * **[Android guide, from 0 to 100](docs/GUIDE-ANDROID.md)**
 * **[On-device test checklist](docs/TEST-CHECKLIST.md)**
 * **[Google-only guide, from 0 to 100](docs/GUIDE-GOOGLE.md)**
 * **[Google + Cloudflare guide](docs/GUIDE-CLOUDFLARE.md)**
+* **[Complete source texts](docs/FULL-TEXT.md)** — `Code.gs`, Worker, exit, engine in full
 * [Protocol specification](docs/PROTOCOL.md)
 * [Security and limits](SECURITY.md)
 
@@ -117,7 +119,10 @@ cloudflare/             Cloudflare Worker exit + Durable Object
 android/                Android app: Compose UI, TUN, SOCKS5, JNI engine
 mobile/                 Go c-shared JNI entry points
 branding/               White/Google-colour X logo and launcher icons
-docs/                   Protocol and step-by-step guides
+docs/                   Documentation index and step-by-step guides
+scripts/                Source-text generator
+gas/Code.gs             The complete Apps Script relay text
+docs/FULL-TEXT.md       All deployable texts in one generated page
 ```
 
 ## Tests
