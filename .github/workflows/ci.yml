@@ -82,3 +82,6 @@ jobs:
         run: |
           cp gas/Code.gs /tmp/Code.js
           node --check /tmp/Code.js
+
+      - name: Relay logic tests
+        run: node --test gas/gas.test.mjs

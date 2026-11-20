@@ -20,6 +20,8 @@ go build ./...
 cd cloudflare
 node --test frames.test.mjs
 node --check worker.js
+cd ..
+node --test gas/gas.test.mjs
 ```
 
 CI runs the same checks. The GAS file is syntax-checked by copying it to a
