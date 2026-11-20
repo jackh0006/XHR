@@ -7,6 +7,13 @@ This product includes software developed by third parties:
 * golang.org/x/net — BSD-3-Clause License
 * github.com/klauspost/compress — BSD-3-Clause License
 * golang.org/x/crypto, golang.org/x/sys, golang.org/x/text — BSD-3-Clause
+* hev-socks5-tunnel — MIT License (source in `android/tun2socks/`)
+* lwIP — BSD-3-Clause (bundled with hev-socks5-tunnel)
+* libyaml — MIT License (bundled with hev-socks5-tunnel)
+* hev-task-system — MIT License (bundled with hev-socks5-tunnel)
+
+The Android app uses AndroidX, Jetpack Compose, and Kotlin under the Apache
+License 2.0.
 
 The Cloudflare Worker uses the Cloudflare Workers runtime and the
 `cloudflare:sockets` API. Cloudflare, Google, Google Apps Script, Cloud Run and

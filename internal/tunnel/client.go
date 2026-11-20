@@ -291,6 +291,9 @@ func (c *Client) roundTrip(ctx context.Context, sid string, items []proto.Item) 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("relay HTTP %d", resp.StatusCode)
 	}
+	if len(raw) > 0 && raw[0] == '<' {
+		return nil, errors.New("relay rejected the profile (check AUTH_KEY and deployment URL)")
+	}
 	var out proto.Response
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return nil, fmt.Errorf("relay response: %w", err)

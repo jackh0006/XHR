@@ -22,20 +22,39 @@ data class SniResult(
 )
 
 object Engine {
+    @Volatile
+    private var owner: String? = null
+
     fun availableError(): String? = Native.error()
 
-    fun start(cfg: XhrConfig): String? {
+    @Synchronized
+    fun start(service: String, cfg: XhrConfig): String? {
         availableError()?.let { return "Native engine unavailable: $it" }
         return runCatching {
-            // A previous process can leave a listener behind. Stop first so a
-            // restart is deterministic.
+            // A previous service can leave a listener behind. Stop it first so
+            // a restart is deterministic, then claim ownership.
             runCatching { Native.stop() }
+            owner = null
             val error = Native.start(cfg.engineJson())
+            if (error.isBlank()) owner = service
             error.ifBlank { null }
         }.getOrElse { it.message ?: "Native engine failed to start" }
     }
 
-    fun stop() {
+    fun ownedBy(service: String): Boolean = owner == service
+
+    /** Stop only if this service still owns the engine. */
+    @Synchronized
+    fun stop(service: String) {
+        if (owner != service) return
+        owner = null
+        if (availableError() != null) return
+        runCatching { Native.stop() }
+    }
+
+    @Synchronized
+    fun stopAll() {
+        owner = null
         if (availableError() != null) return
         runCatching { Native.stop() }
     }

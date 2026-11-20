@@ -11,6 +11,10 @@ You will make two things:
 
 Then you will test it once. After that, the client app can use it.
 
+> Upgrading from XHR 0.1.0? Deploy the exit again from tag `v1.0.0`. The new
+> Android client waits for an `open_ok` acknowledgement that the old binary
+> does not send. Apps Script does not need a new deployment.
+
 ---
 
 ## What you need

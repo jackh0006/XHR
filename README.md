@@ -1,3 +1,5 @@
+<img align="right" src="docs/assets/xhr-icon.png" width="96" alt="XHR icon">
+
 # XHR
 
 ### Encrypted TCP through Google Apps Script. Two exits: Google, then Cloudflare.
@@ -77,7 +79,11 @@ exit always sees the destination. Traffic analysis is still possible.
 
 **[XHR 1.0.0 arm64 APK](https://github.com/jackh0006/XHR/releases/latest)**
 
-SHA-256: `1c5ef4086b638b60687a2abf9db8ef93a84f42d55460af0e577ed07ac569b1d5`
+SHA-256: `44ea6386c4b0dffe706d32c4bf9363ba12e50a54a2742ac237a090ea1e6de761`
+
+> **Upgrading from 0.1.0?** Redeploy the exit from tag `v1.0.0`. The 1.0.0
+> client waits for the new `open_ok` acknowledgement; the old exit binary will
+> time out. `gas/Code.gs` is unchanged.
 
 * One switch for all TCP apps (**TUN**), or a local **SOCKS5** listener for
   v2rayNG.

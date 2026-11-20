@@ -27,3 +27,4 @@ android/build/
 android/local.properties
 dist/*.apk
 dist/xhr-exit-linux-amd64
+android/.kotlin/

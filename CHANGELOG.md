@@ -6,9 +6,10 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [1.0.0] - 2026-11-20
 
-Android client release. The relay protocol is unchanged; the exit now answers
-`open` with an explicit `open_ok`/`open_err` frame, so connection setup is
-deterministic and the first app write is never lost.
+Android client release. The Apps Script relay is unchanged. The exit and client
+now use an explicit `open_ok`/`open_err` acknowledgment, so connection setup is
+deterministic and the first app write is never lost. Redeploy the exit when
+upgrading from 0.1.0.
 
 ### Added
 

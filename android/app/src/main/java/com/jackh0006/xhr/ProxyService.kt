@@ -19,6 +19,7 @@ class ProxyService : android.app.Service() {
         const val ACTION_START = "com.jackh0006.xhr.action.START_PROXY"
         const val ACTION_STOP = "com.jackh0006.xhr.action.STOP_PROXY"
         const val NOTIFICATION_ID = 72
+        private const val OWNER = "proxy"
 
         @Volatile
         var isRunning: Boolean = false
@@ -55,6 +56,10 @@ class ProxyService : android.app.Service() {
     private val tick = object : Runnable {
         override fun run() {
             if (shuttingDown) return
+            if (!Engine.ownedBy(OWNER)) {
+                shutdown(setStopped = false)
+                return
+            }
             Engine.pumpLogs()
             val cfg = config ?: return
             val stats = Engine.stats()
@@ -119,8 +124,8 @@ class ProxyService : android.app.Service() {
                 if (shuttingDown) return@thread
                 Thread.sleep(300)
                 if (shuttingDown) return@thread
-                Engine.stop()
-                val error = Engine.start(cfg)
+                Engine.stop(OWNER)
+                val error = Engine.start(OWNER, cfg)
                 if (error != null) {
                     fail(error)
                     return@thread
@@ -176,7 +181,7 @@ class ProxyService : android.app.Service() {
     private fun cleanup() {
         handler.removeCallbacksAndMessages(null)
         if (engineStarted) {
-            Engine.stop()
+            Engine.stop(OWNER)
             engineStarted = false
         }
         isRunning = false
@@ -201,7 +206,7 @@ class ProxyService : android.app.Service() {
             cleanup()
         }
         val current = XhrState.flow.value
-        if (current.phase != "error" && current.mode == ConnMode.PROXY && !current.starting) {
+        if (current.phase != "error" && current.mode == ConnMode.PROXY && !current.starting && !current.running) {
             XhrState.stopped()
         }
         super.onDestroy()

@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteSweep
@@ -120,15 +119,13 @@ fun LogsScreen(snapshot: XhrSnapshot) {
                     }
                 }
             } else {
-                SelectionContainer {
-                    LazyColumn(
-                        state = listState,
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
-                    ) {
-                        itemsIndexed(lines) { _, line ->
-                            LogRow(line, snapshot.mode)
-                        }
+                LazyColumn(
+                    state = listState,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    itemsIndexed(lines) { _, line ->
+                        LogRow(line, snapshot.mode)
                     }
                 }
             }

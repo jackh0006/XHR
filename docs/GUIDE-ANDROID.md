@@ -37,7 +37,7 @@ Cloudflare, finish **[GUIDE-CLOUDFLARE.md](GUIDE-CLOUDFLARE.md)** first.
 1. On the phone, open
    <https://github.com/jackh0006/XHR/releases/latest>.
 2. Download `XHR-1.0.0-arm64-v8a.apk`.
-   SHA-256: `1c5ef4086b638b60687a2abf9db8ef93a84f42d55460af0e577ed07ac569b1d5`
+   SHA-256: `44ea6386c4b0dffe706d32c4bf9363ba12e50a54a2742ac237a090ea1e6de761`
 3. Open **Files → Downloads**, tap the APK.
 4. Android asks to allow installs from this source. Allow it for Files or
    Chrome, then tap **Install**.

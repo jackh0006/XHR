@@ -3,6 +3,9 @@
 This is the second protocol. The client and the Apps Script relay stay the same;
 only the **exit** changes from Google Cloud Run to a Cloudflare Worker.
 
+> Upgrading from XHR 0.1.0? Deploy the Worker again from tag `v1.0.0` so it
+> sends `open_ok`. The Apps Script relay does not change.
+
 ```text
 client -> Google edge -> Apps Script -> Cloudflare Worker -> destination
 ```

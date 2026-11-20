@@ -65,12 +65,16 @@ fun AppsScreen(
 ) {
     val context = LocalContext.current
     var search by remember { mutableStateOf("") }
-    val apps by produceState<List<AppInfo>>(emptyList(), config.showSystemApps) {
-        value = withContext(Dispatchers.IO) { loadApps(context, config.showSystemApps) }
+    val appsState by produceState<List<AppInfo>?>(null, config.showSystemApps) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { loadApps(context, config.showSystemApps) }.getOrDefault(emptyList())
+        }
     }
+    val apps = appsState
     val filtered = remember(apps, search) {
-        if (search.isBlank()) apps
-        else apps.filter {
+        val list = apps ?: emptyList()
+        if (search.isBlank()) list
+        else list.filter {
             it.label.contains(search, ignoreCase = true) ||
                 it.packageName.contains(search, ignoreCase = true)
         }
@@ -162,7 +166,7 @@ fun AppsScreen(
             )
         }
 
-        if (apps.isEmpty()) {
+        if (apps == null) {
             item {
                 Row(
                     Modifier.fillMaxWidth().padding(26.dp),

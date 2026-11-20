@@ -183,7 +183,8 @@ private fun XhrApp() {
                 onBack = { showSettings = false },
                 onEditProfile = { showSetup = true },
                 onResetProfile = {
-                    if (snapshot.running) stop()
+                    XhrVpnService.stop(context)
+                    ProxyService.stop(context)
                     ConfigStore.clear(context)
                     DailyUsage.reset(context)
                     config = XhrConfig()
@@ -222,7 +223,7 @@ private fun XhrApp() {
                         config = config,
                         onUseIp = { ip ->
                             persist(config.copy(googleIp = ip))
-                            Toast.makeText(context, "Saved edge $ip", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Saved edge $ip · reconnect to apply", Toast.LENGTH_SHORT).show()
                         },
                     )
                     Tab.APPS -> AppsScreen(

@@ -68,6 +68,10 @@ class XhrVpnService : VpnService() {
     private val tick = object : Runnable {
         override fun run() {
             if (shuttingDown) return
+            if (!Engine.ownedBy(OWNER)) {
+                shutdown(setStopped = false)
+                return
+            }
             Engine.pumpLogs()
             if (!runCatching { TProxyService.TProxyIsRunning() }.getOrDefault(false)) {
                 fail("Tunnel engine stopped unexpectedly")
@@ -142,8 +146,8 @@ class XhrVpnService : VpnService() {
                 if (shuttingDown) return@thread
                 Thread.sleep(250)
                 if (shuttingDown) return@thread
-                Engine.stop()
-                val engineError = Engine.start(cfg)
+                Engine.stop(OWNER)
+                val engineError = Engine.start(OWNER, cfg)
                 if (engineError != null) {
                     fail(engineError)
                     return@thread
@@ -307,7 +311,7 @@ class XhrVpnService : VpnService() {
         runCatching { tun?.close() }
         tun = null
         if (engineStarted) {
-            Engine.stop()
+            Engine.stop(OWNER)
             engineStarted = false
         }
         isRunning = false
@@ -339,7 +343,7 @@ class XhrVpnService : VpnService() {
             cleanup()
         }
         val current = XhrState.flow.value
-        if (current.phase != "error" && current.mode == ConnMode.TUN && !current.starting) {
+        if (current.phase != "error" && current.mode == ConnMode.TUN && !current.starting && !current.running) {
             XhrState.stopped()
         }
         super.onDestroy()

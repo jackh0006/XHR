@@ -78,26 +78,34 @@ data class LogLine(val time: String, val text: String)
 
 object XhrLog {
     private val clock = SimpleDateFormat("HH:mm:ss", Locale.US)
+    private val lock = Any()
     val flow = MutableStateFlow<List<LogLine>>(emptyList())
 
     fun add(tag: String, message: String) {
-        val line = LogLine(clock.format(Date()), "[$tag] $message")
-        flow.value = (flow.value + line).takeLast(600)
+        synchronized(lock) {
+            val line = LogLine(clock.format(Date()), "[$tag] $message")
+            flow.value = (flow.value + line).takeLast(600)
+        }
     }
 
     fun addRaw(raw: String) {
         if (raw.isBlank()) return
-        val lines = raw.lineSequence().filter { it.isNotBlank() }.map {
-            val split = it.indexOf(' ')
-            if (split in 1..9) LogLine(it.substring(0, split), it.substring(split + 1))
-            else LogLine(clock.format(Date()), it)
-        }.toList()
-        if (lines.isNotEmpty()) flow.value = (flow.value + lines).takeLast(600)
+        synchronized(lock) {
+            val now = clock.format(Date())
+            val lines = raw.lineSequence().filter { it.isNotBlank() }.map {
+                val split = it.indexOf(' ')
+                if (split in 1..9) LogLine(it.substring(0, split), it.substring(split + 1))
+                else LogLine(now, it)
+            }.toList()
+            if (lines.isNotEmpty()) flow.value = (flow.value + lines).takeLast(600)
+        }
     }
 
     fun clear() {
-        flow.value = emptyList()
-        runCatching { Native.clearLogs() }
+        synchronized(lock) {
+            flow.value = emptyList()
+            runCatching { Native.clearLogs() }
+        }
     }
 }
 
