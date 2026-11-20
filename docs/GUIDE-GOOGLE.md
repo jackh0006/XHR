@@ -35,7 +35,7 @@ Then you will test it once. After that, the client app can use it.
 1. Open <https://shell.cloud.google.com> in a browser. Sign in with your Google
    account.
 2. The first time, click **Authorize** and **Continue**.
-3. A black terminal opens at the bottom. You will paste three commands.
+3. A black terminal opens at the bottom. You will paste a few commands.
 
 ### 1.1 Get the XHR code
 
@@ -69,19 +69,53 @@ GAS=1a9d...64 characters...
 
 ### 1.3 Pick a Google Cloud project
 
-Paste this and press **Enter**:
+In the same Cloud Shell terminal, check which project is active:
 
 ```bash
-gcloud config set project "$(gcloud config get-value project)"
+gcloud config get-value project
 ```
 
-If it says you have no project, open <https://console.cloud.google.com>,
-create one named `xhr`, and run the command again.
+If it prints a real project ID, you can continue.
+
+If it prints `(unset)`, create one:
+
+1. Open <https://console.cloud.google.com> in another tab.
+2. Create a project named `xhr`. Google may give it an ID like
+   `xhr-123456`.
+3. Open **Billing** and link a billing account to that project. Cloud Run
+   needs billing enabled, even when the free tier covers the usage.
+4. Return to Cloud Shell and set the project. Replace `YOUR_PROJECT_ID` with
+   the ID from the console:
+
+```bash
+gcloud config set project YOUR_PROJECT_ID
+gcloud config get-value project
+```
+
+The second command must print your project ID. Do not continue until it does.
+
+> The old line
+> `gcloud config set project "$(gcloud config get-value project)"` did not
+> create a project. It only re-set an existing one. Use the ID from the
+> console instead.
 
 ### 1.4 Deploy the exit
 
-Replace the two values below with your own from step 1.2, then paste the whole
-command and press **Enter**:
+First make sure you are inside the XHR folder:
+
+```bash
+pwd
+```
+
+It must end in `/XHR`. If it does not:
+
+```bash
+cd ~/XHR
+```
+
+Now replace the two values below with your own from step 1.2, then paste the
+whole command and press **Enter**. The values are the 64 characters after
+`E2E=` and `GAS=`. Do not add quotes or spaces.
 
 ```bash
 gcloud run deploy xhr-exit \
@@ -94,19 +128,57 @@ gcloud run deploy xhr-exit \
   --set-env-vars XHR_E2E_KEY=PASTE_E2E_HERE,XHR_GAS_HMAC=PASTE_GAS_HERE
 ```
 
-If it asks to enable APIs, type `y` and press **Enter**.
+The `--source .` part means “build the Dockerfile in the current folder”. That
+is why `pwd` must show `.../XHR`.
 
-When it finishes, it prints a **Service URL** like:
+What happens next:
+
+1. If asked to enable APIs, type `y` and press **Enter**.
+2. Cloud Shell uploads the folder, builds the container, and deploys it. The
+   first build takes a few minutes.
+3. It prints a **Service URL** like:
 
 ```text
 https://xhr-exit-abc123-uc.a.run.app
 ```
 
-**Copy that URL and add `/relay` at the end.** That is your **EXIT_URL**:
+If you do not see the URL, get it again:
+
+```bash
+gcloud run services describe xhr-exit \
+  --region us-central1 \
+  --format='value(status.url)'
+```
+
+Test it:
+
+```bash
+URL=$(gcloud run services describe xhr-exit \
+  --region us-central1 \
+  --format='value(status.url)')
+echo "$URL/healthz"
+curl -i "$URL/healthz"
+```
+
+You should see `HTTP/2 200` and the body `ok`.
+
+Your **EXIT_URL** is the service URL with `/relay` at the end:
+
+```bash
+echo "$URL/relay"
+```
+
+Example:
 
 ```text
 https://xhr-exit-abc123-uc.a.run.app/relay
 ```
+
+Copy that `/relay` URL. It goes into the Apps Script `EXIT_URL` property in
+Part 2.
+
+If Cloud Run says `Billing account not found`, link a billing account to the
+project in the Google Cloud console and run the deploy command again.
 
 ---
 
