@@ -77,7 +77,7 @@ exit always sees the destination. Traffic analysis is still possible.
 
 **[XHR 1.0.0 arm64 APK](https://github.com/jackh0006/XHR/releases/latest)**
 
-SHA-256: `55d5003b0dc580d908dbd395d1d1dee95b399ec9faaab6e2cdde6522cc39a118`
+SHA-256: `1c5ef4086b638b60687a2abf9db8ef93a84f42d55460af0e577ed07ac569b1d5`
 
 * One switch for all TCP apps (**TUN**), or a local **SOCKS5** listener for
   v2rayNG.

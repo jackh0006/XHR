@@ -73,9 +73,25 @@ class XhrVpnService : VpnService() {
                 fail("Tunnel engine stopped unexpectedly")
                 return
             }
-            val cfg = config ?: return
-            val stats = Engine.stats() ?: return
-            val sample = tracker?.sample(stats) ?: return
+            val cfg = config
+            if (cfg == null) {
+                handler.postDelayed(this, 1_000)
+                return
+            }
+            val stats = Engine.stats()
+            if (stats == null) {
+                handler.postDelayed(this, 1_000)
+                return
+            }
+            if (!stats.running) {
+                fail("Native engine stopped unexpectedly")
+                return
+            }
+            val sample = tracker?.sample(stats)
+            if (sample == null) {
+                handler.postDelayed(this, 1_000)
+                return
+            }
             XhrState.traffic(
                 stats.up, stats.down, sample.upRate, sample.downRate,
                 stats.calls, stats.streams, stats.active,

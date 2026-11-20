@@ -62,7 +62,15 @@ class ProxyService : android.app.Service() {
                 handler.postDelayed(this, 1_000)
                 return
             }
-            val sample = tracker?.sample(stats) ?: return
+            if (!stats.running) {
+                fail("Native engine stopped unexpectedly")
+                return
+            }
+            val sample = tracker?.sample(stats)
+            if (sample == null) {
+                handler.postDelayed(this, 1_000)
+                return
+            }
             XhrState.traffic(
                 stats.up, stats.down, sample.upRate, sample.downRate,
                 stats.calls, stats.streams, stats.active,
