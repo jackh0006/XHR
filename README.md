@@ -79,7 +79,7 @@ exit always sees the destination. Traffic analysis is still possible.
 
 **[XHR 1.0.0 arm64 APK](https://github.com/jackh0006/XHR/releases/latest)**
 
-SHA-256: `44ea6386c4b0dffe706d32c4bf9363ba12e50a54a2742ac237a090ea1e6de761`
+SHA-256: `f233a90f301cb6e528f57f6af545fcf9d021fef138611b8566c4f5e1864cd087`
 
 > **Upgrading from 0.1.0?** Redeploy the exit from tag `v1.0.0`. The 1.0.0
 > client waits for the new `open_ok` acknowledgement; the old exit binary will

@@ -1,26 +1,22 @@
 // SPDX-License-Identifier: MIT
+// Command xhr-client is the Linux/macOS preview client. The Android app uses
+// the same internal/tunnel engine through JNI.
 package main
 
 import (
-	"context"
-	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/jackh0006/XHR/internal/proto"
+	"github.com/jackh0006/XHR/internal/tunnel"
 	"github.com/jackh0006/XHR/internal/wire"
-	utls "github.com/refraction-networking/utls"
-	"golang.org/x/net/http2"
 )
 
 type Config struct {
@@ -31,12 +27,6 @@ type Config struct {
 	AuthKey     string `json:"auth_key"`
 	E2EKey      string `json:"e2e_key"`
 	Listen      string `json:"listen"`
-}
-
-type Client struct {
-	cfg  Config
-	key  []byte
-	http *http.Client
 }
 
 func main() {
@@ -51,14 +41,25 @@ func main() {
 	if err != nil {
 		log.Fatal("e2e_key must be 64 hex characters")
 	}
-	c, err := newClient(cfg, key)
+	c, err := tunnel.New(tunnel.Config{
+		GASURL:      cfg.GASURL,
+		GASHost:     cfg.GASHost,
+		FrontDomain: cfg.FrontDomain,
+		GoogleIP:    cfg.GoogleIP,
+		AuthKey:     cfg.AuthKey,
+		Key:         key,
+		OnLog:       func(line string) { log.Printf("%s", line) },
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer c.Close()
+
 	ln, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer ln.Close()
 	log.Printf("xhr-client SOCKS5 on %s", cfg.Listen)
 	for {
 		conn, err := ln.Accept()
@@ -66,7 +67,7 @@ func main() {
 			log.Printf("accept: %v", err)
 			continue
 		}
-		go c.handleSocks(conn)
+		go handleSocks(c, conn)
 	}
 }
 
@@ -105,89 +106,7 @@ func loadConfig(path string) (Config, error) {
 	return cfg, nil
 }
 
-func newClient(cfg Config, key []byte) (*Client, error) {
-	dial := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		d := &net.Dialer{Timeout: 12 * time.Second, KeepAlive: 30 * time.Second}
-		raw, err := d.DialContext(ctx, "tcp", net.JoinHostPort(cfg.GoogleIP, "443"))
-		if err != nil {
-			return nil, err
-		}
-		u := utls.UClient(raw, &utls.Config{
-			ServerName: cfg.FrontDomain,
-			NextProtos: []string{"h2"},
-			MinVersion: tls.VersionTLS12,
-		}, utls.HelloChrome_Auto)
-		if err := u.HandshakeContext(ctx); err != nil {
-			_ = raw.Close()
-			return nil, err
-		}
-		return u, nil
-	}
-	tr := &http2.Transport{
-		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
-			return dial(ctx, network, addr)
-		},
-		ReadIdleTimeout: 30 * time.Second,
-		PingTimeout:     15 * time.Second,
-	}
-	return &Client{
-		cfg:  cfg,
-		key:  key,
-		http: &http.Client{Transport: tr, Timeout: 35 * time.Second},
-	}, nil
-}
-
-func (c *Client) roundTrip(sid string, items []proto.Item) ([]wire.Frame, error) {
-	t := time.Now().Unix()
-	req := proto.ClientRequest{
-		V: 1,
-		T: t,
-		S: sid,
-		M: proto.HMACHex(c.cfg.AuthKey, fmt.Sprintf("%d.%s", t, sid)),
-		Q: items,
-	}
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	httpReq, err := http.NewRequest(http.MethodPost, c.cfg.GASURL, strings.NewReader(string(body)))
-	if err != nil {
-		return nil, err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Host = c.cfg.GASHost
-
-	resp, err := c.http.Do(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("relay HTTP %d", resp.StatusCode)
-	}
-	var out proto.Response
-	if err := json.Unmarshal(raw, &out); err != nil {
-		return nil, fmt.Errorf("relay JSON: %w", err)
-	}
-	if out.E != "" {
-		return nil, errors.New(out.E)
-	}
-	frames := make([]wire.Frame, 0, len(out.R))
-	for _, it := range out.R {
-		f, err := wire.Open(c.key, sid, it.N, it.X)
-		if err != nil {
-			continue
-		}
-		frames = append(frames, f)
-	}
-	return frames, nil
-}
-
-func (c *Client) handleSocks(conn net.Conn) {
+func handleSocks(c *tunnel.Client, conn net.Conn) {
 	defer conn.Close()
 	if err := socksHandshake(conn); err != nil {
 		return
@@ -196,93 +115,31 @@ func (c *Client) handleSocks(conn net.Conn) {
 	if err != nil {
 		return
 	}
-	sid, err := wire.NewSID()
-	if err != nil {
-		return
-	}
-
-	open := wire.Frame{Op: "open", Stream: 1, Host: host, Port: port}
-	n, x, err := wire.Seal(c.key, sid, open, 512)
-	if err != nil {
-		return
-	}
-	frames, err := c.roundTrip(sid, []proto.Item{{N: n, X: x}})
+	remote, err := c.Open(host, port)
 	if err != nil {
 		log.Printf("open %s:%d: %v", host, port, err)
+		_, _ = conn.Write([]byte{5, 5, 0, 1, 0, 0, 0, 0, 0, 0})
 		return
 	}
-	for _, f := range frames {
-		if f.Op == "data" && f.Stream == 1 {
-			_, _ = conn.Write(f.Data)
-		}
+	defer remote.Close()
+	if _, err := conn.Write([]byte{5, 0, 0, 1, 0, 0, 0, 0, 0, 0}); err != nil {
+		return
 	}
-
-	out := make(chan []byte, 64)
+	done := make(chan struct{}, 2)
 	go func() {
-		buf := make([]byte, 900)
-		for {
-			n, err := conn.Read(buf)
-			if n > 0 {
-				cp := make([]byte, n)
-				copy(cp, buf[:n])
-				select {
-				case out <- cp:
-				case <-time.After(10 * time.Second):
-					return
-				}
-			}
-			if err != nil {
-				close(out)
-				return
-			}
-		}
+		_, _ = io.Copy(remote, conn)
+		_ = remote.Close()
+		done <- struct{}{}
 	}()
-
-	for {
-		items := make([]proto.Item, 0, 16)
-		closed := false
-	drain:
-		for len(items) < 16 {
-			select {
-			case data, ok := <-out:
-				if !ok {
-					closed = true
-					break drain
-				}
-				f := wire.Frame{Op: "data", Stream: 1, Data: data}
-				fn, fx, err := wire.Seal(c.key, sid, f, 256)
-				if err == nil {
-					items = append(items, proto.Item{N: fn, X: fx})
-				}
-			default:
-				break drain
-			}
-		}
-		if closed {
-			f := wire.Frame{Op: "close", Stream: 1}
-			fn, fx, _ := wire.Seal(c.key, sid, f, 128)
-			_, _ = c.roundTrip(sid, append(items, proto.Item{N: fn, X: fx}))
-			return
-		}
-
-		frames, err := c.roundTrip(sid, items)
-		if err != nil {
-			time.Sleep(500 * time.Millisecond)
-			continue
-		}
-		for _, f := range frames {
-			switch f.Op {
-			case "data":
-				if f.Stream == 1 {
-					_, _ = conn.Write(f.Data)
-				}
-			case "close", "error":
-				return
-			}
-		}
-		if len(items) > 0 {
-			time.Sleep(10 * time.Millisecond)
-		}
+	go func() {
+		_, _ = io.Copy(conn, remote)
+		_ = conn.Close()
+		done <- struct{}{}
+	}()
+	<-done
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
 	}
 }
 
@@ -313,7 +170,11 @@ func socksRequest(conn net.Conn) (string, uint16, error) {
 	if _, err := io.ReadFull(conn, h); err != nil {
 		return "", 0, err
 	}
-	if h[0] != 5 || h[1] != 1 {
+	if h[0] != 5 {
+		return "", 0, errors.New("socks version")
+	}
+	if h[1] != 1 {
+		_, _ = conn.Write([]byte{5, 7, 0, 1, 0, 0, 0, 0, 0, 0})
 		return "", 0, errors.New("socks command")
 	}
 	var host string
@@ -328,6 +189,9 @@ func socksRequest(conn net.Conn) (string, uint16, error) {
 		l := make([]byte, 1)
 		if _, err := io.ReadFull(conn, l); err != nil {
 			return "", 0, err
+		}
+		if l[0] == 0 {
+			return "", 0, errors.New("socks address")
 		}
 		b := make([]byte, int(l[0]))
 		if _, err := io.ReadFull(conn, b); err != nil {
@@ -347,7 +211,5 @@ func socksRequest(conn net.Conn) (string, uint16, error) {
 	if _, err := io.ReadFull(conn, p); err != nil {
 		return "", 0, err
 	}
-	port := binary.BigEndian.Uint16(p)
-	_, err := conn.Write([]byte{5, 0, 0, 1, 0, 0, 0, 0, 0, 0})
-	return host, port, err
+	return host, binary.BigEndian.Uint16(p), nil
 }

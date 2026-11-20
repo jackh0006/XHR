@@ -569,6 +569,13 @@ func (s *Session) rxLoop() {
 				return
 			}
 			s.c.noteError(err)
+			if strings.Contains(err.Error(), "no session") {
+				// The exit garbage-collected this session during an outage.
+				// Close the mux so apps get a clean reset and the next Open
+				// creates a fresh session instead of writing into a void.
+				s.close()
+				return
+			}
 			select {
 			case <-time.After(backoff):
 			case <-s.ctx.Done():
@@ -652,22 +659,18 @@ func (st *Stream) deliver(data []byte) {
 
 // Read implements io.Reader.
 func (st *Stream) Read(p []byte) (int, error) {
-	if len(st.pending) == 0 {
+	for len(st.pending) == 0 {
 		select {
 		case data := <-st.rx:
 			st.pending = data
-		default:
+		case <-st.done:
+			// Drain everything that arrived before the close. A TCP FIN can
+			// arrive in the same poll as the last payload bytes.
 			select {
 			case data := <-st.rx:
 				st.pending = data
-			case <-st.done:
-				// Drain anything that arrived just before the close.
-				select {
-				case data := <-st.rx:
-					st.pending = data
-				default:
-					return 0, io.EOF
-				}
+			default:
+				return 0, io.EOF
 			}
 		}
 	}
