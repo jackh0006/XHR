@@ -149,21 +149,72 @@ npx wrangler --version
 
 In that case, use `npx wrangler` instead of `wrangler` in every command below.
 
-### 5.3 Sign in to Cloudflare
+### 5.3 Sign in with a Cloudflare API token
 
-```bash
-wrangler login
+Do **not** use `wrangler login` in Cloud Shell. It redirects to
+`http://localhost:8976/oauth/callback`, which is your own computer, not the
+Cloud Shell machine. The browser will show:
+
+```text
+localhost refused to connect
+ERR_CONNECTION_REFUSED
 ```
 
-A browser tab opens, or Wrangler prints a URL. Approve the login.
+That is expected. It is not a Cloudflare outage and you do not need to retry
+the login link.
 
-Verify:
+Instead, create a Cloudflare API token:
+
+1. Open <https://dash.cloudflare.com/login> and log in normally.
+2. Open <https://dash.cloudflare.com/profile/api-tokens>.
+3. Click **Create Token**.
+4. Choose **Edit Cloudflare Workers**.
+5. Click **Use template**.
+6. **Token name:** `XHR deploy`.
+7. **Account Resources:** include your Cloudflare account.
+8. **Zone Resources:** all zones, or remove the zone policy if you have no
+   domain. `workers.dev` does not need a zone.
+9. **Token expiration:** 30 days is a good default.
+10. **Client IP address filtering:** leave empty, because Cloud Shell’s IP can
+    change.
+11. Click **Continue to summary** → **Create Token**.
+12. Copy the token immediately. It is shown only once.
+
+Get your **Account ID** from **Workers & Pages**, or from the dashboard URL:
+
+```text
+https://dash.cloudflare.com/<ACCOUNT_ID>
+```
+
+In Cloud Shell:
 
 ```bash
+cd ~/XHR/cloudflare
+
+read -r -s -p "Paste Cloudflare API token: " CLOUDFLARE_API_TOKEN
+echo
+
+read -r -p "Paste Cloudflare Account ID: " CLOUDFLARE_ACCOUNT_ID
+
+export CLOUDFLARE_API_TOKEN
+export CLOUDFLARE_ACCOUNT_ID
+
 wrangler whoami
 ```
 
-You should see your Cloudflare account email and account ID.
+Nothing appears while the token is pasted because `read -s` hides it. Press
+Enter after pasting.
+
+If `wrangler` is not found, use `npx wrangler whoami`.
+
+You should see your Cloudflare account. If it says “not authenticated,” the
+token was not pasted or is missing **Workers Scripts: Edit**.
+
+Keep these environment variables until you finish the secrets. If you open a
+new Cloud Shell tab, set them again.
+
+Never paste the token into chat, a repository, or a screenshot. If it leaks,
+delete it on the API Tokens page and create a new one.
 
 ### 5.4 Deploy once
 
@@ -686,7 +737,10 @@ Set **Settings → Daily safety limit** to stop the tunnel at a chosen size.
 | Symptom | Meaning | Fix |
 |---|---|---|
 | `wrangler: command not found` | npm global bin missing | use `npx wrangler ...` |
-| `wrangler login` cannot open browser | Cloud Shell | open the printed URL manually |
+| `wrangler login` cannot open browser | Cloud Shell | stop; use the API token method in 5.3 |
+| `localhost refused to connect` after Cloudflare login | OAuth callback cannot reach Cloud Shell | stop; use the API token method in 5.3 |
+| `wrangler whoami` says not authenticated | token not exported or wrong | run the token/account commands in 5.3 again |
+| `Authentication error` / `403` from Wrangler | token missing Workers permission | recreate with **Edit Cloudflare Workers** |
 | `wrangler deploy` says Durable Objects not enabled | account/plan problem | use Workers Free with SQLite DO, or a different Cloudflare account |
 | Worker `/healthz` returns 404 | wrong URL | copy the exact `workers.dev` URL |
 | Worker `/healthz` returns 500 | missing secret or code error | `wrangler secret list`, `wrangler tail` |
