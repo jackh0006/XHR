@@ -80,8 +80,9 @@ If it prints a real project ID, you can continue.
 If it prints `(unset)`, create one:
 
 1. Open <https://console.cloud.google.com> in another tab.
-2. Create a project named `xhr`. Google may give it an ID like
-   `xhr-123456`.
+2. Create a project named `XHR Relay` (the display name must be 4–30
+   characters). Google will assign a project ID like `xhr-relay-123456`.
+   Project IDs are 6–30 characters, lowercase, and globally unique.
 3. Open **Billing** and link a billing account to that project. Cloud Run
    needs billing enabled, even when the free tier covers the usage.
 4. Return to Cloud Shell and set the project. Replace `YOUR_PROJECT_ID` with
