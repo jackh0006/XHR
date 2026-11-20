@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.XHR" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:colorAccent">@color/xhr_blue</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/xhr_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">@color/xhr_bg</item>
+    </style>
+</resources>

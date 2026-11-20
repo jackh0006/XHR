@@ -1,0 +1,7 @@
+<resources>
+    <color name="xhr_blue">#4285F4</color>
+    <color name="xhr_red">#EA4335</color>
+    <color name="xhr_yellow">#FBBC05</color>
+    <color name="xhr_green">#34A853</color>
+    <color name="xhr_bg">#F7F9FC</color>
+</resources>

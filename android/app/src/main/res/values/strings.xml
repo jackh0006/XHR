@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">XHR</string>
+    <string name="channel_name">XHR connection</string>
+    <string name="channel_desc">Live tunnel status, speed, and daily usage</string>
+    <string name="notif_proxy_title">XHR SOCKS5 proxy is running</string>
+    <string name="notif_vpn_title">XHR is protecting your traffic</string>
+    <string name="notif_starting">Starting…</string>
+    <string name="notif_unavailable">Traffic counters unavailable</string>
+    <string name="notif_stop">Stop</string>
+    <string name="error_vpn_denied">Android did not grant the VPN interface.</string>
+    <string name="error_tunnel_engine">The TUN engine did not start.</string>
+    <string name="error_start_failed">XHR could not start.</string>
+    <string name="error_no_per_app">Select at least one app for “Only selected” mode.</string>
+</resources>
