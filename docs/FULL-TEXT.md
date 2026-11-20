@@ -10,9 +10,9 @@ scripts/build-full-text.sh
 
 The guides are ordinary Markdown files:
 
+* [Cloudflare-only, 0 to 100](GUIDE-CLOUDFLARE.md)
 * [Android, 0 to 100](GUIDE-ANDROID.md)
-* [Google-only, 0 to 100](GUIDE-GOOGLE.md)
-* [Google + Cloudflare](GUIDE-CLOUDFLARE.md)
+* [Google Cloud Run, optional](GUIDE-GOOGLE.md)
 * [Protocol](PROTOCOL.md)
 * [Security and limits](../SECURITY.md)
 * [On-device test checklist](TEST-CHECKLIST.md)
@@ -186,6 +186,12 @@ const TIME_WINDOW = 120;
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/healthz" && request.method === "GET") {
+      return new Response("ok", {
+        status: 200,
+        headers: { "Content-Type": "text/plain" },
+      });
+    }
     if (url.pathname !== "/relay" || request.method !== "POST") {
       return new Response("Not found", { status: 404 });
     }

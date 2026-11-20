@@ -1,88 +1,177 @@
-# XHR — Google + Cloudflare guide
+# XHR — complete Cloudflare-only guide
 
-This is the second protocol. The client and the Apps Script relay stay the same;
-only the **exit** changes from Google Cloud Run to a Cloudflare Worker.
+This is the complete, self-contained path. You will use:
 
-> Upgrading from XHR 0.1.0? Deploy the Worker again from tag `v1.0.0` so it
-> sends `open_ok`. The Apps Script relay does not change.
+* **Google Apps Script** as the relay.
+* **Cloudflare Workers Free** as the exit.
+* The **XHR Android APK** as the client.
+
+You will **not** use Cloud Run, `gcloud run`, a Google Cloud billing account, or
+a credit card for this path.
 
 ```text
-client -> Google edge -> Apps Script -> Cloudflare Worker -> destination
+Android app / v2rayNG
+        |
+        |  HTTPS/2, Chrome TLS fingerprint, SNI www.google.com
+        v
+Google edge  ->  your Apps Script /exec
+        |
+        |  HTTPS, opaque encrypted frames + X-XHR-MAC
+        v
+Cloudflare Worker  ->  Durable Object  ->  destination TCP
 ```
 
-Google sees ciphertext going to your Worker. Cloudflare sees the destination.
+Google sees ciphertext, timing, volume, and the Worker URL.
+Cloudflare sees the destination and plaintext. The phone and the exit share the
+end-to-end AES-256-GCM key. Apps Script never sees that key.
 
 ---
 
-## Before you start
+## 1. What you need
 
-**This path does not need Cloud Run, Google Cloud billing, or a credit card.**
-Apps Script is free. The Worker exit runs on the Cloudflare **Workers Free**
-plan, which currently includes SQLite-backed Durable Objects and outbound TCP
-sockets.
+* A Google account (Gmail is fine). Workspace accounts may block “Anyone”
+  Web App access; if so, use a personal Gmail.
+* A Cloudflare account. The **Workers Free** plan is enough. Do not add a card
+  for this guide.
+* A terminal. Google Cloud Shell is free and already has Node.js:
+  <https://shell.cloud.google.com>
+* An arm64 Android phone, Android 7.0 or newer. Huawei Y9 2019 is the reference
+  device.
+* About 30 minutes.
 
-You need:
+You do **not** need:
 
-* a Google account for Apps Script,
-* a Cloudflare account,
-* Node.js 18+ (Cloud Shell already has it),
-* about 15 minutes.
+* a Google Cloud project,
+* Cloud Run,
+* a billing account,
+* a domain name,
+* a public IP,
+* a computer that stays on.
 
-You need two secrets. Generate them now if you have not:
+---
+
+## 2. The three secrets
+
+You need three independent secrets.
+
+| Name | Used by | Goes in Apps Script? |
+|---|---|---|
+| `E2E` | Android client + Cloudflare exit | **No** |
+| `GAS` | Apps Script + Cloudflare exit | Yes, as `EXIT_HMAC` |
+| `AUTH_KEY` | Android client + Apps Script | Yes |
+
+Generate them in Cloud Shell:
 
 ```bash
 echo "E2E=$(openssl rand -hex 32)"
 echo "GAS=$(openssl rand -hex 32)"
+echo "AUTH_KEY=$(openssl rand -hex 32)"
 ```
 
-Save them privately. `E2E` is for the client and exit. `GAS` is for Apps Script
-and the exit.
+You will see three 64-character hex lines. Save them in a password manager or a
+private note. Do not post them in chat, screenshots, or GitHub issues.
 
-You also need an Apps Script project. If you do not have one, follow **Part 2**
-of [GUIDE-GOOGLE.md](GUIDE-GOOGLE.md), but **skip Part 1** (do not deploy
-Cloud Run). Use the Worker `/relay` URL as `EXIT_URL` when you set the
-properties. `EXIT_HMAC` is the `GAS=` value. `AUTH_KEY` is a separate password
-for the XHR client.
+* `E2E` is the tunnel key. It protects the destination and payload from Google.
+* `GAS` is the password between Apps Script and the Worker.
+* `AUTH_KEY` is the password between the Android app and Apps Script.
+
+Never put `E2E` in Apps Script. Apps Script must stay blind.
 
 ---
 
-## Part 1 — Deploy the Cloudflare exit
+## 3. Get the XHR repository
 
-1. Open <https://shell.cloud.google.com> (or any terminal with Node.js 18+).
-2. Enter the Worker folder in the XHR repository:
+In Cloud Shell:
 
 ```bash
 git clone https://github.com/jackh0006/XHR.git
-cd XHR/cloudflare
+cd XHR
+pwd
 ```
 
-If you already cloned XHR, just:
+`pwd` must end in `/XHR`.
+
+If you already cloned it:
+
+```bash
+cd ~/XHR
+git pull
+```
+
+The repository is public, so this clone needs no login.
+
+---
+
+## 4. Create the Cloudflare account
+
+1. Open <https://dash.cloudflare.com/sign-up>.
+2. Create a free account with your email.
+3. Verify the email.
+4. Do **not** add a paid plan or a card for this guide.
+5. In the dashboard, open **Workers & Pages**.
+
+If Cloudflare asks for a card before allowing Workers, stop. The free path is
+not available on that account; use a different account or a different exit.
+
+---
+
+## 5. Deploy the Worker exit
+
+### 5.1 Enter the Worker folder
 
 ```bash
 cd ~/XHR/cloudflare
+ls
 ```
 
-3. Install Wrangler, Cloudflare’s command-line tool:
+You must see:
+
+```text
+worker.js
+frames.js
+frames.test.mjs
+wrangler.toml
+package.json
+```
+
+### 5.2 Install Wrangler
 
 ```bash
 npm install -g wrangler
+wrangler --version
 ```
 
-If `npm install -g` is blocked, use `npx wrangler` in every command instead.
+If global install is blocked:
 
-4. Sign in:
+```bash
+npx wrangler --version
+```
+
+In that case, use `npx wrangler` instead of `wrangler` in every command below.
+
+### 5.3 Sign in to Cloudflare
 
 ```bash
 wrangler login
 ```
 
-A browser tab or a code/URL appears. Approve the login.
+A browser tab opens, or Wrangler prints a URL. Approve the login.
 
-5. Deploy the Worker. It must exist before secrets can be attached:
+Verify:
+
+```bash
+wrangler whoami
+```
+
+You should see your Cloudflare account email and account ID.
+
+### 5.4 Deploy once
 
 ```bash
 wrangler deploy
 ```
+
+If asked to create a `workers.dev` subdomain, accept it.
 
 Wrangler prints a URL like:
 
@@ -90,120 +179,490 @@ Wrangler prints a URL like:
 https://xhr-exit.YOURNAME.workers.dev
 ```
 
-6. Store the two secrets. At the `Enter a secret value:` prompt, paste the
-value and press Enter. Nothing is echoed.
+Save it. This is your Worker base URL.
+
+If the deploy fails with `Durable Objects not enabled`, check that the account
+is on the Workers Free plan. As of Cloudflare's current docs, Workers Free
+includes SQLite-backed Durable Objects and outbound TCP sockets. If Cloudflare
+insists on a paid plan for your account, this free path is not available there.
+
+### 5.5 Add the two Worker secrets
+
+The Worker must exist first. It does now.
 
 ```bash
 wrangler secret put XHR_E2E_KEY
+```
+
+When asked for the value, paste your **E2E** value and press Enter.
+
+```bash
 wrangler secret put XHR_GAS_HMAC
 ```
 
-Use:
-* `XHR_E2E_KEY` = your `E2E=` value
-* `XHR_GAS_HMAC` = your `GAS=` value
+Paste your **GAS** value.
 
-7. Prove the Worker is live. This is expected to return **401**, because no HMAC
-was sent:
+Verify the names, not the values:
+
+```bash
+wrangler secret list
+```
+
+You should see both names.
+
+### 5.6 Test the Worker health endpoint
 
 ```bash
 WORKER="https://xhr-exit.YOURNAME.workers.dev"
+curl -i "$WORKER/healthz"
+```
+
+Expected:
+
+```text
+HTTP/2 200
+ok
+```
+
+If you get `404`, the URL is wrong.
+
+### 5.7 Test the relay route without auth
+
+```bash
 curl -i -X POST "$WORKER/relay"
 ```
 
-A `401 Unauthorized` means the Worker and its route exist. A `404` means the URL
-or `/relay` path is wrong. A `500` usually means a secret is missing.
+Expected:
 
-8. Your **EXIT_URL** is the Worker URL plus `/relay`:
+```text
+HTTP/2 401
+Unauthorized
+```
+
+This is correct: no HMAC was sent.
+
+A `500` usually means a secret is missing. Run `wrangler tail` in one terminal
+and repeat the request in another.
+
+### 5.8 Your EXIT_URL
 
 ```text
 https://xhr-exit.YOURNAME.workers.dev/relay
 ```
 
----
-
-## Part 2 — Point Apps Script at Cloudflare
-
-1. Open your XHR Apps Script project at <https://script.google.com>.
-2. Open **Project Settings → Script Properties**.
-3. Change **EXIT_URL** to the Worker URL ending in `/relay`.
-4. Keep `AUTH_KEY` and `EXIT_HMAC` exactly the same.
-5. Save. You do not need a new deployment; the Deployment ID stays the same.
-
-That is the whole change. The client uses the same Deployment ID, AUTH_KEY and
-E2E key.
+It must end in `/relay`. Save it.
 
 ---
 
-## Part 3 — Test
+## 6. Create the Apps Script relay
 
-Use the same test as the Google guide:
+### 6.1 New project
+
+1. Open <https://script.google.com>.
+2. Click **New project**.
+3. Delete the default `function myFunction()`.
+4. Rename the project to `XHR`.
+
+### 6.2 Paste the complete relay
+
+Open:
+
+```text
+https://raw.githubusercontent.com/jackh0006/XHR/main/gas/Code.gs
+```
+
+Copy **all** of it. Paste it into the Apps Script editor. Click **Save**.
+
+The same complete text is also in the repository:
+
+* `gas/Code.gs`
+* `docs/FULL-TEXT.md`
+
+### 6.3 Set Script Properties
+
+1. Click **Project Settings** (the gear on the left).
+2. Scroll to **Script Properties**.
+3. Add these:
+
+| Property | Value |
+|---|---|
+| `AUTH_KEY` | your `AUTH_KEY` value |
+| `EXIT_URL` | `https://xhr-exit.YOURNAME.workers.dev/relay` |
+| `EXIT_HMAC` | your `GAS` value |
+| `MAX_ITEMS` | `64` |
+| `MAX_BYTES` | `262144` |
+
+`MAX_BYTES` is optional, but setting it keeps requests inside the Apps Script
+body limit.
+
+Do **not** add `E2E`. Apps Script must never have it.
+
+### 6.4 Deploy the Web App
+
+1. Click **Deploy → New deployment**.
+2. Click the gear next to **Select type**.
+3. Choose **Web app**.
+4. Set:
+   * **Description:** `XHR relay`
+   * **Execute as:** `Me`
+   * **Who has access:** `Anyone`
+5. Click **Deploy**.
+6. Approve the Google authorization screens.
+7. Copy the **Deployment ID** or the full `/exec` URL.
+
+The URL looks like:
+
+```text
+https://script.google.com/macros/s/AKfycbxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/exec
+```
+
+The Deployment ID is the `AKfycb...` part between `/s/` and `/exec`.
+
+### 6.5 Quick check
+
+Open the `/exec` URL in a browser. It returns a harmless “Moved / not found”
+page from `doGet`. That is expected; the real relay is `doPost`.
+
+### 6.6 If you change Code.gs later
+
+Script Properties changes apply immediately. Code changes do not. After editing
+the code:
+
+1. **Deploy → Manage deployments**.
+2. Edit the existing Web App deployment.
+3. Choose **New version**.
+4. Deploy again.
+
+The Deployment ID stays the same.
+
+---
+
+## 7. Install the Android app
+
+1. Open
+   <https://github.com/jackh0006/XHR/releases/latest>.
+2. Download `XHR-1.0.0-arm64-v8a.apk`.
+3. SHA-256:
+   `f233a90f301cb6e528f57f6af545fcf9d021fef138611b8566c4f5e1864cd087`
+4. Open **Files → Downloads** and tap the APK.
+5. Allow installs from this source.
+6. If Play Protect warns, choose **Install anyway**.
+
+The APK is signed by the XHR release key, arm64-v8a, `minSdk 24`,
+`targetSdk 34`.
+
+---
+
+## 8. Configure the Android app
+
+Open XHR. On the setup screen enter:
+
+| Field | Value |
+|---|---|
+| Deployment ID or URL | `AKfycb...` or the full `/exec` URL |
+| `AUTH_KEY` | your `AUTH_KEY` value |
+| Tunnel key | your `E2E` value, exactly 64 hex characters |
+| Google edge | `216.239.38.120` |
+| Front domain | `www.google.com` (advanced) |
+| Local port | `1080` (advanced) |
+
+Tap **Save profile**.
+
+The profile is stored encrypted with Android Keystore. There is no account and
+no cloud sync.
+
+---
+
+## 9. Find the best Google edge
+
+1. Tap **Edge**.
+2. Leave SNI as `www.google.com`.
+3. Tap **Test all IPs**.
+4. Wait for the TLS/HTTP2 results.
+5. Tap **Use `<ip>`** on the fastest green row.
+
+This only measures the network path to Google. It does not consume Apps Script
+quota.
+
+If all rows fail:
+
+* try Wi-Fi,
+* try another front domain: `mail.google.com` or `accounts.google.com`,
+* try another network,
+* some carriers block Google edge IPs.
+
+After changing the IP, reconnect the tunnel.
+
+---
+
+## 10. Start TUN mode
+
+1. Tap **Home**.
+2. Select **TUN · all apps**.
+3. Tap the power button.
+4. Android asks for VPN permission. Tap **OK**.
+5. The notification appears: **XHR is protecting your traffic**.
+6. Open a browser and load a page.
+
+Expected:
+
+* Home shows **CONNECTED**.
+* Upload/download totals increase.
+* The notification shows live speed.
+* **Test connection** succeeds and shows an exit IP.
+* Logs show `CONNECT host:port`.
+
+TUN mode uses a real Android `VpnService` interface and the source-built
+`hev-socks5-tunnel` library. XHR excludes its own package so its Google
+connection cannot loop through the tunnel.
+
+### Huawei Y9 2019 battery settings
+
+Huawei kills background apps aggressively:
+
+1. **Settings → Battery → App launch**.
+2. Find **XHR**.
+3. Turn off **Manage automatically**.
+4. Enable **Auto-launch**, **Secondary launch**, and **Run in background**.
+5. **Settings → Apps → XHR → Battery** → allow background activity.
+
+---
+
+## 11. Per-app routing
+
+Tap **Apps**:
+
+* **All apps** — every app is tunneled except XHR.
+* **Only selected** — only the checked apps are tunneled.
+* **Except selected** — every app except the checked apps is tunneled.
+
+Reconnect after changing the list.
+
+XHR itself is always excluded.
+
+---
+
+## 12. SOCKS5 mode with v2rayNG
+
+1. In XHR, select **SOCKS5 · v2rayNG**.
+2. Tap the power button.
+3. Home shows `127.0.0.1:1080`.
+4. Open **v2rayNG**.
+5. Tap **+ → Manually input → Socks**.
+6. Set:
+   * Address: `127.0.0.1`
+   * Port: `1080`
+   * Username/password: empty
+   * Remarks: `XHR`
+7. Save and select the profile.
+8. In v2rayNG’s **Per-app proxy**, **exclude XHR**. If v2rayNG captures XHR,
+   XHR’s own Google connection loops back into v2rayNG.
+9. Start v2rayNG.
+
+Traffic:
+
+```text
+app -> v2rayNG VPN -> 127.0.0.1:1080 -> XHR engine
+    -> Google edge -> Apps Script -> Cloudflare Worker -> destination
+```
+
+The local SOCKS listener binds only `127.0.0.1`. It has no password, so do not
+expose it with a port forward.
+
+---
+
+## 13. Prove the whole chain
+
+### Android
+
+Home → **Test connection**. It performs an HTTPS request through the local
+SOCKS listener and shows the exit IP.
+
+### Optional Linux test
+
+Cloud Shell has Go. Create a profile:
 
 ```bash
 cd ~/XHR/cmd/xhr-client
 go build -o xhr-client .
+nano config.json
+```
+
+Paste:
+
+```json
+{
+  "gas_url": "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec",
+  "google_ip": "216.239.38.120",
+  "auth_key": "YOUR_AUTH_KEY",
+  "e2e_key": "YOUR_E2E",
+  "listen": "127.0.0.1:1080"
+}
+```
+
+Save with `Ctrl+O`, Enter, then `Ctrl+X`.
+
+Run:
+
+```bash
 ./xhr-client -config config.json
 ```
 
-In another tab:
+In a second terminal:
 
 ```bash
-curl -x socks5h://127.0.0.1:1080 https://example.com/
+curl --socks5-hostname 127.0.0.1:1080 -i https://example.com/
 ```
 
-If it returns HTML, the Cloudflare exit works.
+If you see HTML, the full chain works.
 
 ---
 
-## How to tell which exit is active
+## 14. Live logs and daily limits
 
-| You changed `EXIT_URL` to | Traffic exits through |
-|---|---|
-| `https://xhr-exit-....run.app/relay` | Google Cloud Run |
-| `https://xhr-exit....workers.dev/relay` | Cloudflare |
+Tap **Logs**:
 
-You can switch back and forth by editing that one property. The client does not
-change.
+* `CONNECT host:port` — a TCP stream opened.
+* `session ... started/closed` — an Apps Script session.
+* `error:` — a transport problem.
+* **Copy all** and **Clear** are local only.
 
----
+Home shows:
 
-## Limits and honest warnings
+* upload/download totals and live rates,
+* today’s Apps Script request count,
+* optional data limit,
+* active stream count.
 
-* **Cloudflare sees the destination.** It is the exit. End-to-end encryption
-  protects the payload from Google, not from the exit.
-* **Google still sees metadata**: your deployment, request sizes, timing, and
-  the Worker URL.
-* Cloudflare Workers Free has CPU, request, Durable Object, and TCP limits.
-  Long-lived idle tunnels can be evicted; the client reconnects.
-* Workers Free currently includes SQLite-backed Durable Objects and TCP
-  sockets. If Cloudflare changes that or asks for a paid plan, the exit needs
-  the Workers Paid plan.
-* Free plan CPU is low. If `wrangler tail` shows CPU-limit errors under load,
-  reduce traffic or move to Workers Paid.
-* UDP does not work. TCP only.
-* Speed is still limited by Google Apps Script. Cloudflare does not make Apps
-  Script faster.
+The free Apps Script account allows about **20,000 `UrlFetchApp` calls/day**.
+An idle session uses roughly 5,700 calls/day because the exit long-polls.
+Cloudflare Workers Free allows **100,000 requests/day** and SQLite Durable
+Objects. Apps Script is the tighter quota.
+
+Set **Settings → Daily safety limit** to stop the tunnel at a chosen size.
 
 ---
 
-## Problems and fixes
+## 15. Troubleshooting
 
-| What you see | Meaning | Fix |
+| Symptom | Meaning | Fix |
 |---|---|---|
-| `workers.dev` 404 | wrong path | the URL must end in `/relay` |
-| 401 from the Worker | `XHR_GAS_HMAC` mismatch | paste the same `GAS=` value |
-| `Durable Objects not enabled` | account/plan does not include them | check the Cloudflare Workers plan; free accounts use SQLite-backed Durable Objects |
-| Session dies after a few minutes | Worker/DO eviction | reconnect; do not idle for very long |
-| `connect failed` | destination refused or blocked by Cloudflare | check the destination and Worker logs with `wrangler tail` |
-| Works on Google exit, not Cloudflare | secret mismatch | compare `EXIT_HMAC` in Script Properties and the Worker secret |
+| `wrangler: command not found` | npm global bin missing | use `npx wrangler ...` |
+| `wrangler login` cannot open browser | Cloud Shell | open the printed URL manually |
+| `wrangler deploy` says Durable Objects not enabled | account/plan problem | use Workers Free with SQLite DO, or a different Cloudflare account |
+| Worker `/healthz` returns 404 | wrong URL | copy the exact `workers.dev` URL |
+| Worker `/healthz` returns 500 | missing secret or code error | `wrangler secret list`, `wrangler tail` |
+| POST `/relay` returns 401 | no HMAC sent | expected; not an error |
+| POST `/relay` returns 500 | secret/config error | check both secrets |
+| Apps Script returns decoy HTML for `/exec` | normal GET | relay is `doPost`; use the app test |
+| App says `relay HTTP 401` | `AUTH_KEY`/`EXIT_HMAC` mismatch | copy again, no spaces |
+| App says `expired` | phone clock wrong | enable automatic time |
+| `no session` | exit evicted/restarted | reconnect |
+| `Durable Objects not enabled` | plan issue | see above |
+| Works then stops | Apps Script daily quota | wait for reset or add another deployment |
+| TUN won’t start | VPN permission | tap power again, allow Android VPN prompt |
+| Port 1080 busy | another proxy/VPN | stop it or change port in Settings |
+| v2rayNG loops | XHR not excluded | exclude XHR in v2rayNG per-app |
+| Cloudflare CPU error | free 10 ms CPU | reduce load or use Workers Paid |
+| Session dies after long idle | Worker/DO eviction | reconnect; the client reconnects automatically |
+
+Useful commands:
+
+```bash
+cd ~/XHR/cloudflare
+wrangler tail
+wrangler deployments list
+wrangler secret list
+```
 
 ---
 
-## Which one should I use?
+## 16. Security and honest limits
 
-| Situation | Use |
+* End-to-end **AES-256-GCM**. Google and Cloudflare never get the `E2E` key.
+* **HMAC-SHA256** on client → GAS and GAS → Worker, with a 120-second window.
+* Session-bound AES-GCM AAD; replayed frames are rejected.
+* uTLS Chrome fingerprint, HTTP/2, SNI `www.google.com` on the last mile.
+* Android profile encrypted with Android Keystore.
+* Local SOCKS listener binds loopback only.
+* The ISP sees a Google IP, TCP 443, SNI `www.google.com`.
+* Google sees metadata: the deployment, timing, sizes, Worker URL.
+* Cloudflare sees destinations and plaintext.
+* **TCP only.** Apps Script has no UDP; QUIC fails and apps fall back to TCP.
+* Speed is limited by Apps Script, not Cloudflare.
+* This is censorship resistance, not anonymity.
+* Cloudflare Workers Free has CPU, request, Durable Object, and open-connection
+  limits. If Cloudflare changes the free plan, the Worker may need Workers Paid.
+
+---
+
+## 17. Update, rotate, or remove
+
+### Rotate secrets
+
+* `E2E`: change `XHR_E2E_KEY` in the Worker, then update every client. Restart
+  the Worker deployment. Old clients stop working.
+* `GAS`: change `XHR_GAS_HMAC` in the Worker and `EXIT_HMAC` in Apps Script.
+* `AUTH_KEY`: change it in Apps Script and every client. Old clients stop.
+
+### Update the Worker
+
+```bash
+cd ~/XHR
+git pull
+cd cloudflare
+wrangler deploy
+```
+
+Secrets stay in place.
+
+### Remove the Worker
+
+```bash
+cd ~/XHR/cloudflare
+wrangler delete
+```
+
+### Remove the Apps Script relay
+
+Delete the Apps Script project, or delete the Web App deployment. That revokes
+the client’s relay.
+
+### Reset the Android profile
+
+Home → gear → **Reset profile**. This deletes keys and counters from the phone.
+
+---
+
+## 18. File map
+
+| Path | What it is |
 |---|---|
-| You want everything inside Google | Google Cloud Run exit |
-| You already have Cloudflare Workers | Cloudflare exit |
-| Cloud Run billing is a problem | Cloudflare exit |
-| You want the destination hidden from Google | either exit; Google only sees ciphertext |
-| You want the simplest setup | Google Cloud Run (one `gcloud` command) |
+| `gas/Code.gs` | Complete Apps Script relay |
+| `cloudflare/worker.js` | Complete Worker + Durable Object exit |
+| `cloudflare/frames.js` | Worker AES-GCM/HMAC helpers |
+| `cloudflare/wrangler.toml` | Worker/DO configuration |
+| `docs/FULL-TEXT.md` | All deployable source texts in one page |
+| `docs/GUIDE-CLOUDFLARE.md` | This guide |
+| `docs/GUIDE-ANDROID.md` | Android app details |
+| `docs/TEST-CHECKLIST.md` | On-device checks |
+| `cmd/xhr-client` | Linux SOCKS5 preview client |
+| `android/` | Complete Android app source |
+
+---
+
+## 19. Free-plan reality check
+
+This path is free **if** Cloudflare Workers Free on your account includes:
+
+* SQLite-backed Durable Objects,
+* outbound TCP sockets,
+* enough CPU for AES-GCM frames,
+* 100,000 Worker requests/day and the Durable Object free limits.
+
+Cloudflare’s current documentation says Workers Free includes SQLite-backed
+Durable Objects and TCP sockets. Plans can change. If your account is asked for
+a card or a paid plan, the free Cloudflare exit is not available there.
+
+Apps Script is free within its daily quotas. There is no Google Cloud billing
+in this path.

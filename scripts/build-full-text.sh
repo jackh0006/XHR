@@ -31,9 +31,9 @@ scripts/build-full-text.sh
 
 The guides are ordinary Markdown files:
 
+* [Cloudflare-only, 0 to 100](GUIDE-CLOUDFLARE.md)
 * [Android, 0 to 100](GUIDE-ANDROID.md)
-* [Google-only, 0 to 100](GUIDE-GOOGLE.md)
-* [Google + Cloudflare](GUIDE-CLOUDFLARE.md)
+* [Google Cloud Run, optional](GUIDE-GOOGLE.md)
 * [Protocol](PROTOCOL.md)
 * [Security and limits](../SECURITY.md)
 * [On-device test checklist](TEST-CHECKLIST.md)

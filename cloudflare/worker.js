@@ -28,6 +28,12 @@ const TIME_WINDOW = 120;
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/healthz" && request.method === "GET") {
+      return new Response("ok", {
+        status: 200,
+        headers: { "Content-Type": "text/plain" },
+      });
+    }
     if (url.pathname !== "/relay" || request.method !== "POST") {
       return new Response("Not found", { status: 404 });
     }

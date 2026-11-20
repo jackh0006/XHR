@@ -6,15 +6,15 @@ release page.
 
 ## Start here
 
-1. **[Google-only, from 0 to 100](GUIDE-GOOGLE.md)** — create the Cloud Run
-   exit and the Apps Script relay.
+1. **[Cloudflare-only, from 0 to 100](GUIDE-CLOUDFLARE.md)** — the recommended
+   free path. Apps Script + Cloudflare Workers Free, no Google Cloud billing.
 2. **[Android, from 0 to 100](GUIDE-ANDROID.md)** — install the APK, set up
    TUN, per-app routing, v2rayNG, logs, and limits.
-3. **[Google + Cloudflare](GUIDE-CLOUDFLARE.md)** — switch the same relay to a
-   Cloudflare Worker exit.
-4. **[Test checklist](TEST-CHECKLIST.md)** — run this on the phone.
-5. **[Protocol](PROTOCOL.md)** and **[Security](../SECURITY.md)** — exact
+3. **[Test checklist](TEST-CHECKLIST.md)** — run this on the phone.
+4. **[Protocol](PROTOCOL.md)** and **[Security](../SECURITY.md)** — exact
    frames, authentication, and the honest threat model.
+5. **[Google Cloud Run guide](GUIDE-GOOGLE.md)** — optional path if you can
+   add a billing account/card.
 
 ## Complete source texts
 

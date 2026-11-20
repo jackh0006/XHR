@@ -2,24 +2,28 @@
 
 # XHR
 
-### Encrypted TCP through Google Apps Script. Two exits: Google, then Cloudflare.
+### Encrypted TCP through Google Apps Script. Cloudflare first; Google Cloud Run optional.
 
 XHR is a new relay project. It is **not** mhrv and **not** XRV. It tunnels
 arbitrary **TCP** from a client to a destination through an Apps Script
 deployment and an exit service, with end-to-end AES-256-GCM.
 
+> **Recommended free path:** Apps Script + **Cloudflare Workers Free**. It needs
+> no Google Cloud billing account and no card. Follow the
+> **[complete Cloudflare guide](docs/GUIDE-CLOUDFLARE.md)**.
+
 ```text
 client (SOCKS5 / TUN)
   -> HTTPS/2 to a Google edge (SNI www.google.com, Chrome TLS fingerprint)
   -> Google Apps Script /exec  (opaque encrypted frames)
-  -> exit service (Google Cloud Run, then Cloudflare Worker)
+  -> exit service (Cloudflare Worker, or Google Cloud Run)
   -> destination TCP
 ```
 
-| Phase | Exit | Status |
+| Phase | Exit / client | Status |
 |---|---|---|
-| **1** | Google Cloud Run | Relay, exit, protocol, and tests in this repository |
-| **2** | Cloudflare Worker + Durable Objects | Worker exit included; deploy guide included |
+| **1** | **Cloudflare Worker + Durable Objects** | Recommended free path; complete guide |
+| **2** | Google Cloud Run | Optional; needs a billing account/card |
 | **3** | Android app (TUN + SOCKS5) | **XHR 1.0.0 APK**, arm64, Huawei Y9 2019 reference device |
 
 The Linux preview client in `cmd/xhr-client` is still useful for testing the
@@ -54,8 +58,7 @@ ciphertext**. It cannot see the destination, the payload, or the tunnel key.
 |---|---|---|
 | ISP / DPI | a Google IP, TCP 443, SNI `www.google.com` | destination, payload |
 | Google (GAS) | ciphertext frames, timing, volume, exit URL | destination, payload, keys |
-| Exit (Cloud Run) | destination and payload | client identity |
-| Cloudflare (phase 2) | destination and payload | client identity |
+| Exit (Cloudflare or Cloud Run) | destination and payload | client identity |
 
 This is **not** anonymity. Google always sees metadata and the script code. The
 exit always sees the destination. Traffic analysis is still possible.
@@ -97,11 +100,11 @@ SHA-256: `f233a90f301cb6e528f57f6af545fcf9d021fef138611b8566c4f5e1864cd087`
 
 ## Quick start
 
-* **[Documentation index](docs/README.md)** — every guide and source path
-* **[Android guide, from 0 to 100](docs/GUIDE-ANDROID.md)**
+* **[Cloudflare-only guide, from 0 to 100](docs/GUIDE-CLOUDFLARE.md)** — free path, no Google Cloud billing
+* **[Android guide](docs/GUIDE-ANDROID.md)** — install, TUN, SOCKS5, v2rayNG, per-app
 * **[On-device test checklist](docs/TEST-CHECKLIST.md)**
-* **[Google-only guide, from 0 to 100](docs/GUIDE-GOOGLE.md)**
-* **[Google + Cloudflare guide](docs/GUIDE-CLOUDFLARE.md)**
+* **[Documentation index](docs/README.md)** — every guide and source path
+* **[Google Cloud Run guide](docs/GUIDE-GOOGLE.md)** — optional paid-card path
 * **[Complete source texts](docs/FULL-TEXT.md)** — `Code.gs`, Worker, exit, engine in full
 * [Protocol specification](docs/PROTOCOL.md)
 * [Security and limits](SECURITY.md)
@@ -110,7 +113,7 @@ SHA-256: `f233a90f301cb6e528f57f6af545fcf9d021fef138611b8566c4f5e1864cd087`
 
 ```text
 gas/Code.gs             Apps Script relay (opaque forwarder)
-cmd/xhr-exit/           Google Cloud Run exit (Go)
+cmd/xhr-exit/           Optional Google Cloud Run exit (Go)
 cmd/xhr-client/         Linux SOCKS5 preview client (Go)
 internal/tunnel/        Multiplexed Android/Linux client core
 internal/wire/          AES-256-GCM frames
