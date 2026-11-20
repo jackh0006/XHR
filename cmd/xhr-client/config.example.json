@@ -1,0 +1,9 @@
+{
+  "gas_url": "https://script.google.com/macros/s/PASTE_DEPLOYMENT_ID/exec",
+  "gas_host": "script.google.com",
+  "front_domain": "www.google.com",
+  "google_ip": "216.239.38.120",
+  "auth_key": "PASTE_AUTH_KEY",
+  "e2e_key": "PASTE_64_HEX_E2E_KEY",
+  "listen": "127.0.0.1:1080"
+}

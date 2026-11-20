@@ -1,0 +1,8 @@
+{
+  "name": "xhr-exit",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test frames.test.mjs"
+  }
+}

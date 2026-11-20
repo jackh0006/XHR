@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest an improvement for XHR.
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does it solve?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Compatibility
+      options:
+        - label: It keeps the end-to-end encryption model
+        - label: It keeps the GAS relay blind to destinations
+        - label: It works for both Google and Cloudflare exits, or explains why not

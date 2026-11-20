@@ -1,0 +1,11 @@
+go: downloading github.com/klauspost/compress v1.17.4
+go: downloading golang.org/x/crypto v0.59.0
+go: downloading golang.org/x/sys v0.50.0
+go: github.com/refraction-networking/utls imports
+	golang.org/x/crypto/chacha20poly1305: golang.org/x/crypto@v0.59.0: Get "https://goproxy.cn/golang.org/x/crypto/@v/v0.59.0.mod": net/http: TLS handshake timeout
+go: github.com/refraction-networking/utls imports
+	golang.org/x/crypto/cryptobyte: golang.org/x/crypto@v0.59.0: Get "https://goproxy.cn/golang.org/x/crypto/@v/v0.59.0.mod": net/http: TLS handshake timeout
+go: github.com/refraction-networking/utls imports
+	golang.org/x/crypto/hkdf: golang.org/x/crypto@v0.59.0: Get "https://goproxy.cn/golang.org/x/crypto/@v/v0.59.0.mod": net/http: TLS handshake timeout
+go: github.com/refraction-networking/utls imports
+	golang.org/x/crypto/sha3: golang.org/x/crypto@v0.59.0: Get "https://goproxy.cn/golang.org/x/crypto/@v/v0.59.0.mod": net/http: TLS handshake timeout

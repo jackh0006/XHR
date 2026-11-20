@@ -1,0 +1,21 @@
+# Build output
+/xhr-exit
+/xhr-client
+cmd/xhr-client/xhr-client
+cmd/xhr-exit/xhr-exit
+
+# Local secrets and configuration
+config.json
+.env
+*.pem
+*.key
+
+# Node / Wrangler
+node_modules/
+.wrangler/
+cloudflare/.dev.vars
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,57 @@
+name: Bug report
+description: Something is broken or behaves differently than documented.
+title: "[bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste AUTH_KEY, EXIT_HMAC, the E2E tunnel key, or a full
+        deployment URL.** Replace them with `<redacted>`.
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Exit type
+      options:
+        - Google Cloud Run
+        - Cloudflare Worker
+        - Both
+        - Client only
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: XHR version or commit
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Exact message and steps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (secrets removed)
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed all keys, deployment IDs, and personal URLs
+          required: true
+        - label: I read the deployment guide and troubleshooting section
+          required: true
