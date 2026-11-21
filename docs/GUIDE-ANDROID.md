@@ -139,6 +139,19 @@ This is a Huawei rule, not an XHR bug.
 
 ---
 
+## Deployment pool
+
+You can add up to five Apps Script deployments. Each can point to the same
+Worker, or to a different Worker under a different Cloudflare account.
+
+- All deployments use the same `AUTH_KEY`.
+- All Workers used by this phone use the same `E2E`.
+- Each GAS deployment can have its own `EXIT_URL` and `EXIT_HMAC`.
+
+Choose **2 active** deployments for one phone. More active deployments do not
+make Apps Script faster; they add failover and can use separate provider
+quotas.
+
 ## 5 — Per-app routing
 
 1. Tap **Apps**.

@@ -68,7 +68,7 @@ exit always sees the destination. Traffic analysis is still possible.
 * All **TCP** applications: browsers, APIs, Telegram (TCP fallback), SSH,
   messaging, app stores.
 * **SOCKS5** mode for v2rayNG and other apps.
-* **TUN** mode in the upcoming Android app.
+* **TUN** mode in the Android app.
 
 ## What cannot work
 
@@ -91,6 +91,8 @@ SHA-256: `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
   v2rayNG.
 * **1–5 Apps Script deployments** per profile, with active-count selection,
   round-robin, and failover.
+* **Multiple Google and Cloudflare accounts** can be combined into one
+  deployment pool.
 * Real upload/download totals and live speed in the status-bar notification.
 * Per-app routing (all / only / except).
 * Google edge lab with real TLS/SNI latency results.
@@ -98,6 +100,39 @@ SHA-256: `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
 * About and 14 donation assets.
 * Android Keystore-encrypted profile, no analytics, no telemetry.
 * arm64-v8a only, `minSdk 24`, built and signed with the Huawei Y9 2019 as the reference device.
+
+## Deployment pools and multiple accounts
+
+One XHR profile can use **1–5 Apps Script deployments**. They can all point to
+the same Worker, or each can point to a different Worker under a different
+Cloudflare account.
+
+| Thing | Rule |
+|---|---|
+| `E2E` tunnel key | **Same on every Worker** used by one profile |
+| Android `AUTH_KEY` | **Same on every Apps Script** deployment |
+| Worker URL | May be different |
+| Cloudflare account/email | May be different |
+| Worker `XHR_GAS_HMAC` | Can be different for each Worker |
+| Apps Script `EXIT_HMAC` | Must match its own Worker |
+| Apps Script `EXIT_URL` | Must point to its own Worker `/relay` |
+| Deployment ID | Different for each Apps Script project |
+
+The app stores only the Apps Script Deployment IDs. Each Apps Script holds its
+own `EXIT_URL`. A typical five-way pool:
+
+```text
+Google account A -> GAS A -> Cloudflare A -> Worker A
+Google account B -> GAS B -> Cloudflare B -> Worker B
+Google account C -> GAS C -> Cloudflare C -> Worker C
+Google account D -> GAS D -> Cloudflare D -> Worker D
+Google account E -> GAS E -> Cloudflare E -> Worker E
+```
+
+All five Workers must use the same `XHR_E2E_KEY`; otherwise the app cannot
+decrypt through that exit. Different Google accounts have separate Apps Script
+quotas. Different Cloudflare accounts have separate Worker/Durable Object
+quotas. Accounts under the same provider share that provider's quota.
 
 ## Quick start
 

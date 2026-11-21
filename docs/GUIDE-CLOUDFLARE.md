@@ -466,11 +466,26 @@ You can:
 * create separate Apps Script projects and paste the same code/properties into
   each.
 
-Every deployment must use:
+Every deployment must use the same `AUTH_KEY`.
 
-* the same `AUTH_KEY`,
-* the same `EXIT_URL`,
-* the same `EXIT_HMAC`.
+If all deployments point to the same Worker, they also use the same
+`EXIT_URL` and `EXIT_HMAC`.
+
+They can also point to **different Workers and different Cloudflare accounts**:
+
+| Value | Same or different? |
+|---|---|
+| `AUTH_KEY` | Same on every Apps Script |
+| `E2E` | Same on every Worker used by the profile |
+| `EXIT_URL` | Different per Worker |
+| Worker `XHR_GAS_HMAC` | Can be different per Worker |
+| GAS `EXIT_HMAC` | Matches its own Worker |
+| Deployment ID | Different per GAS project |
+
+The app stores only the GAS Deployment IDs. It does not store Worker URLs.
+
+All Workers used by one profile must share the same `E2E` key. If you use a
+different `E2E` on a Worker, requests routed there cannot be decrypted.
 
 In the Android setup screen, put one Deployment ID or `/exec` URL per line.
 Then choose **Active deployments** from 1 to 5.
