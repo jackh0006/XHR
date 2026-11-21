@@ -48,12 +48,23 @@ Every deployable text is below, in full.
  *    Script Properties. Do not publish a file with real values in CONFIG.
  */
 
+/*
+ * EDIT THESE THREE VALUES.
+ *
+ * Put the value between the quotes. Do not use // here.
+ * If you prefer Script Properties, leave all three empty and set:
+ * AUTH_KEY, EXIT_URL, EXIT_HMAC in Project Settings.
+ *
+ * AUTH_KEY  = the password used by the Android app
+ * EXIT_URL  = https://your-worker.workers.dev/relay
+ * EXIT_HMAC = the GAS value (NOT the E2E tunnel key)
+ */
 var CONFIG = {
-  // AUTH_KEY: "64-character hex secret",
-  // EXIT_URL: "https://your-worker.workers.dev/relay",
-  // EXIT_HMAC: "64-character hex secret",
-  // MAX_ITEMS: 64,
-  // MAX_BYTES: 262144
+  AUTH_KEY: "",
+  EXIT_URL: "",
+  EXIT_HMAC: "",
+  MAX_ITEMS: 64,
+  MAX_BYTES: 262144
 };
 
 var DEFAULTS = { MAX_ITEMS: 64, MAX_BYTES: 262144 };

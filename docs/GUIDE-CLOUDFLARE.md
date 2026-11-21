@@ -350,7 +350,19 @@ This is the safest method because the values are not in the code.
 
 #### Method B — `CONFIG` block (quick test)
 
-At the top of `Code.gs`, fill the `CONFIG` block:
+The repository `Code.gs` already has three **uncommented, empty** fields:
+
+```javascript
+var CONFIG = {
+  AUTH_KEY: "",
+  EXIT_URL: "",
+  EXIT_HMAC: "",
+  MAX_ITEMS: 64,
+  MAX_BYTES: 262144
+};
+```
+
+Put each value between the quotes:
 
 ```javascript
 var CONFIG = {
@@ -361,6 +373,9 @@ var CONFIG = {
   MAX_BYTES: 262144
 };
 ```
+
+Do not use `//` before `AUTH_KEY`, `EXIT_URL`, or `EXIT_HMAC`. A line starting
+with `//` is a comment and is ignored.
 
 Do not commit a file with real values. If you use Method B, you do not need
 Script Properties.

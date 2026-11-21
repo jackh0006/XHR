@@ -27,7 +27,17 @@ Leave the `CONFIG` block empty and set:
 
 ### Quick test: `CONFIG` block
 
-Fill the block at the top of `Code.gs`:
+The repository file starts with three **uncommented, empty** fields:
+
+```javascript
+var CONFIG = {
+  AUTH_KEY: "",
+  EXIT_URL: "",
+  EXIT_HMAC: ""
+};
+```
+
+Put each value between the quotes. Do not add `//` before a field.
 
 ```javascript
 var CONFIG = {
