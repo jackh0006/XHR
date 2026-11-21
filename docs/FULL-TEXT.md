@@ -188,7 +188,7 @@ function _safeEqual(a, b) {
 
 ~~~javascript
 // SPDX-License-Identifier: MIT
-// XHR Cloudflare Worker exit (phase 2).
+// XHR Cloudflare Worker exit.
 //
 // Worker verifies the GAS HMAC, then routes each session id to a Durable
 // Object. The Durable Object holds the TCP sockets and does the encryption.

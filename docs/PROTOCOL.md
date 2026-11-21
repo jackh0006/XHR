@@ -126,5 +126,6 @@ see metadata and the script itself; do not store secrets in the script code.
 * GAS request/response body limits (keep frames small).
 * Cloud Run request timeout and instance concurrency.
 * Latency is at least one GAS round trip; long polling amortizes it.
-* Cloudflare Workers phase 2 has its own TCP/CPU limits and needs Durable
-  Objects for session state.
+* The Cloudflare Worker exit has its own TCP/CPU limits and uses Durable
+  Objects for session state. Workers Free currently supports SQLite-backed
+  Durable Objects and outbound TCP.
