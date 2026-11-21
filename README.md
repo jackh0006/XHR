@@ -24,7 +24,7 @@ client (SOCKS5 / TUN)
 |---|---|---|
 | **1** | **Cloudflare Worker + Durable Objects** | Recommended free path; complete guide |
 | **2** | Google Cloud Run | Optional; needs a billing account/card |
-| **3** | Android app (TUN + SOCKS5) | **XHR 1.0.1 APK**, arm64, Huawei Y9 2019 reference device |
+| **3** | Android app (TUN + SOCKS5) | **XHR 1.0.1 APK**, armeabi-v7a / arm64-v8a / x86 / x86_64, Huawei Y9 2019 reference device |
 
 The Linux preview client in `cmd/xhr-client` is still useful for testing the
 relay from a computer.
@@ -99,7 +99,7 @@ SHA-256: `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
 * Live local logs, daily request and data counters, optional daily data cap.
 * About and 14 donation assets.
 * Android Keystore-encrypted profile, no analytics, no telemetry.
-* arm64-v8a only, `minSdk 24`, built and signed with the Huawei Y9 2019 as the reference device.
+* `armeabi-v7a`, `arm64-v8a`, `x86`, and `x86_64`, `minSdk 24`, built and signed with the Huawei Y9 2019 as the reference device.
 
 ## Deployment pools and multiple accounts
 

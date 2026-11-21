@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=XHR
+Comment=Encrypted TCP-over-XHR SOCKS5 client
+Exec=xhr-client
+Icon=xhr
+Terminal=true
+Categories=Network;
+Keywords=proxy;SOCKS5;VPN;tunnel;
+StartupNotify=false

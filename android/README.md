@@ -1,14 +1,16 @@
 # XHR Android
 
-The Android app is an arm64-v8a Material 3 client for the XHR relay.
+The Android app is a Material 3 client for the XHR relay. Release builds are
+available for `armeabi-v7a`, `arm64-v8a`, `x86`, and `x86_64`, plus a universal
+APK containing every ABI.
 
 ## What is inside
 
 | Path | Purpose |
 |---|---|
 | `app/src/main/java/com/jackh0006/xhr` | UI, services, JNI bridge, settings |
-| `app/src/main/jniLibs/arm64-v8a/libxhr.so` | Go engine + JNI, built by `mobile/` |
-| `app/src/main/jniLibs/arm64-v8a/libhev-socks5-tunnel.so` | Source-built TUN-to-SOCKS5 shim |
+| `app/src/main/jniLibs/<abi>/libxhr.so` | Go engine + JNI, built by `mobile/` |
+| `app/src/main/jniLibs/<abi>/libhev-socks5-tunnel.so` | Source-built TUN-to-SOCKS5 shim |
 | `tun2socks/` | Pinned hev source used for the shim |
 | `scripts/build-engine.sh` | Rebuilds both native libraries with the NDK |
 | `scripts/release.sh` | Builds, signs, copies, and hashes the release APK |
@@ -55,8 +57,8 @@ listener binds loopback only.
 ## Minimum phone
 
 * Android 7.0 (API 24)
-* arm64-v8a CPU
-* Huawei Y9 2019 / Kirin 710 is the reference device
+* One of: armeabi-v7a, arm64-v8a, x86, or x86_64 CPU
+* Huawei Y9 2019 / Kirin 710 (arm64-v8a) is the reference device
 
 ## Security
 

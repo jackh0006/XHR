@@ -23,7 +23,7 @@ android {
         targetSdk = 34
         versionCode = 2
         versionName = "1.0.1"
-        ndk { abiFilters += listOf("arm64-v8a") }
+        ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64") }
     }
 
     signingConfigs {
@@ -46,13 +46,27 @@ android {
 
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")
 
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
-    packaging { resources.excludes += setOf("META-INF/AL2.0", "META-INF/LGPL2.1") }
+    packaging {
+        resources.excludes += setOf("META-INF/AL2.0", "META-INF/LGPL2.1")
+        // Keep native libraries extracted because the manifest explicitly
+        // requests android:extractNativeLibs="true".
+        jniLibs.useLegacyPackaging = true
+    }
     lint { checkReleaseBuilds = false; abortOnError = false }
 }
 

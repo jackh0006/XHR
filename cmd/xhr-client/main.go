@@ -12,6 +12,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -31,7 +32,7 @@ type Config struct {
 }
 
 func main() {
-	cfgPath := flag.String("config", "config.json", "path to config.json")
+	cfgPath := flag.String("config", defaultConfigPath(), "path to config.json")
 	flag.Parse()
 
 	cfg, err := loadConfig(*cfgPath)
@@ -74,6 +75,14 @@ func main() {
 		}
 		go handleSocks(c, conn)
 	}
+}
+
+func defaultConfigPath() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "config.json"
+	}
+	return filepath.Join(dir, "xhr-client", "config.json")
 }
 
 func loadConfig(path string) (Config, error) {

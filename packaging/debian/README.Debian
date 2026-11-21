@@ -1,0 +1,21 @@
+XHR is installed as a loopback-only SOCKS5 client. It does not configure a
+system proxy and it never enables itself automatically.
+
+Copy the example configuration and add the deployment and keys created from
+the XHR deployment guide:
+
+  install -Dm600 /usr/share/doc/xhr-client/examples/config.json \
+    ~/.config/xhr-client/config.json
+  editor ~/.config/xhr-client/config.json
+
+Run it in a terminal:
+
+  xhr-client
+
+Or run it as a per-user systemd service:
+
+  systemctl --user enable --now xhr-client
+
+The listener defaults to 127.0.0.1:1080. Never put a real key in a bug report.
+The desktop launcher uses the same XHR logo as the Android release and starts
+the client in a terminal with that per-user configuration path.

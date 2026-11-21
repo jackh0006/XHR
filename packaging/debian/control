@@ -1,0 +1,12 @@
+Package: xhr-client
+Version: 1.0.1
+Section: net
+Priority: optional
+Architecture: amd64
+Depends: ca-certificates
+Maintainer: XHR contributors <noreply@example.invalid>
+Homepage: https://github.com/jackh0006/XHR
+Description: encrypted TCP-over-XHR SOCKS5 client
+ XHR provides a loopback-only SOCKS5 listener that carries TCP connections
+ through an Apps Script relay to an XHR exit. It has no telemetry and does not
+ support UDP or QUIC.

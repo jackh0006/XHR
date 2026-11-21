@@ -1,0 +1,13 @@
+[Unit]
+Description=XHR loopback SOCKS5 client
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/xhr-client -config %h/.config/xhr-client/config.json
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
