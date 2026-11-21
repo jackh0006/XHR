@@ -1,8 +1,9 @@
 XHR is installed as a loopback-only SOCKS5 client. It does not configure a
 system proxy and it never enables itself automatically.
 
-Copy the example configuration and add the deployment and keys created from
-the XHR deployment guide:
+Copy the example configuration and add the deployment IDs and keys created
+from the XHR deployment guide. The client supports one to five deployments in
+the gas_urls array:
 
   install -Dm600 /usr/share/doc/xhr-client/examples/config.json \
     ~/.config/xhr-client/config.json

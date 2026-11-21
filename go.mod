@@ -1,16 +1,16 @@
 module github.com/jackh0006/XHR
 
-go 1.27.4
+go 1.25.10
 
 require (
 	github.com/refraction-networking/utls v1.8.2
-	golang.org/x/net v0.63.0
+	golang.org/x/net v0.51.0
 )
 
 require (
 	github.com/andybalholm/brotli v1.0.6 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
-	golang.org/x/crypto v0.59.0 // indirect
-	golang.org/x/sys v0.50.0 // indirect
-	golang.org/x/text v0.44.0 // indirect
+	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 )

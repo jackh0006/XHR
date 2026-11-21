@@ -33,5 +33,5 @@ install -m 0644 "$ROOT/branding/xhr-icon-1024.png" "$PKG/usr/share/icons/hicolor
 
 mkdir -p "$ROOT/dist"
 dpkg-deb --build --root-owner-group "$PKG" "$ROOT/dist/xhr-client_${VERSION}_${ARCH}.deb"
-sha256sum "$ROOT/dist/xhr-client_${VERSION}_${ARCH}.deb" > "$ROOT/dist/xhr-client_${VERSION}_${ARCH}.deb.sha256"
+(cd "$ROOT/dist" && sha256sum "xhr-client_${VERSION}_${ARCH}.deb" > "xhr-client_${VERSION}_${ARCH}.deb.sha256")
 echo "built $ROOT/dist/xhr-client_${VERSION}_${ARCH}.deb"

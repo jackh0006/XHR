@@ -14,12 +14,16 @@ require_file() {
 }
 
 require_file "$ROOT/dist/xhr-client_1.0.1_amd64.deb"
+require_file "$ROOT/dist/xhr-client_1.0.1_amd64.deb.sha256"
+require_file "$ROOT/android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk"
 require_file "$ROOT/android/app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk"
 require_file "$ROOT/android/app/build/outputs/apk/debug/app-x86-debug.apk"
 require_file "$ROOT/android/app/build/outputs/apk/debug/app-x86_64-debug.apk"
 require_file "$ROOT/android/app/build/outputs/apk/debug/app-universal-debug.apk"
 
 cp "$ROOT/dist/xhr-client_1.0.1_amd64.deb" "$STAGE/XHR-1.0.1-linux-amd64.deb"
+(cd "$STAGE" && sha256sum XHR-1.0.1-linux-amd64.deb > XHR-1.0.1-linux-amd64.deb.sha256)
+cp "$ROOT/android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk" "$STAGE/XHR-1.0.1-arm64-v8a-debug.apk"
 cp "$ROOT/android/app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk" "$STAGE/XHR-1.0.1-armeabi-v7a-debug.apk"
 cp "$ROOT/android/app/build/outputs/apk/debug/app-x86-debug.apk" "$STAGE/XHR-1.0.1-x86-debug.apk"
 cp "$ROOT/android/app/build/outputs/apk/debug/app-x86_64-debug.apk" "$STAGE/XHR-1.0.1-x86_64-debug.apk"
@@ -41,6 +45,8 @@ upload() {
 }
 
 upload "$STAGE/XHR-1.0.1-linux-amd64.deb" "Linux amd64 Debian package"
+upload "$STAGE/XHR-1.0.1-linux-amd64.deb.sha256" "Linux amd64 Debian package checksum"
+upload "$STAGE/XHR-1.0.1-arm64-v8a-debug.apk" "Android arm64-v8a debug APK"
 upload "$STAGE/XHR-1.0.1-armeabi-v7a-debug.apk" "Android armeabi-v7a debug APK"
 upload "$STAGE/XHR-1.0.1-x86-debug.apk" "Android x86 debug APK"
 upload "$STAGE/XHR-1.0.1-x86_64-debug.apk" "Android x86_64 debug APK"

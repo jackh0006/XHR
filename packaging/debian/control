@@ -4,7 +4,7 @@ Section: net
 Priority: optional
 Architecture: amd64
 Depends: ca-certificates
-Maintainer: XHR contributors <noreply@example.invalid>
+Maintainer: jackh0006 <jackh109867@gmail.com>
 Homepage: https://github.com/jackh0006/XHR
 Description: encrypted TCP-over-XHR SOCKS5 client
  XHR provides a loopback-only SOCKS5 listener that carries TCP connections

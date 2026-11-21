@@ -1,5 +1,7 @@
 {
-  "gas_url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+  "gas_urls": [
+    "https://script.google.com/macros/s/DEPLOYMENT_ID_1/exec"
+  ],
   "gas_host": "script.google.com",
   "front_domain": "www.google.com",
   "google_ip": "216.239.38.120",

@@ -80,9 +80,23 @@ exit always sees the destination. Traffic analysis is still possible.
 
 ## Download the Android app
 
-**[XHR 1.0.1 arm64 APK](https://github.com/jackh0006/XHR/releases/latest)**
+**[XHR 1.0.1 release](https://github.com/jackh0006/XHR/releases/latest)**
 
-SHA-256: `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
+Release APK SHA-256: `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
+
+The same release also includes:
+
+| Asset | Use |
+|---|---|
+| `XHR-1.0.1-linux-amd64.deb` | Debian amd64 client |
+| `XHR-1.0.1-universal-debug.apk` | Debug APK for any supported Android ABI |
+| `XHR-1.0.1-arm64-v8a-debug.apk` | Debug APK for arm64 phones |
+| `XHR-1.0.1-armeabi-v7a-debug.apk` | Debug APK for 32-bit ARM |
+| `XHR-1.0.1-x86-debug.apk` | Debug APK for x86 |
+| `XHR-1.0.1-x86_64-debug.apk` | Debug APK for x86_64 |
+
+Debug APKs use the Android debug key. They cannot be installed over the
+release-signed APK; uninstall the release app first. They are for testing.
 
 > **Upgrading?** Redeploy the exit from tag `v1.0.1`. The 1.0.x client waits
 > for the `open_ok` acknowledgement; the old 0.1.0 exit binary will time out.
@@ -133,6 +147,32 @@ All five Workers must use the same `XHR_E2E_KEY`; otherwise the app cannot
 decrypt through that exit. Different Google accounts have separate Apps Script
 quotas. Different Cloudflare accounts have separate Worker/Durable Object
 quotas. Accounts under the same provider share that provider's quota.
+
+## Linux client
+
+Download the Debian package for amd64 from the latest release:
+
+```bash
+sudo apt install ./XHR-1.0.1-linux-amd64.deb
+```
+
+Create the per-user profile:
+
+```bash
+install -Dm600 /usr/share/doc/xhr-client/examples/config.json \
+  ~/.config/xhr-client/config.json
+editor ~/.config/xhr-client/config.json
+```
+
+Start it:
+
+```bash
+xhr-client
+```
+
+Then use `127.0.0.1:1080` as a SOCKS5 proxy.
+
+Full Linux guide: [docs/GUIDE-LINUX.md](docs/GUIDE-LINUX.md)
 
 ## Quick start
 
