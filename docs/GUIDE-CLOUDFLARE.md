@@ -511,10 +511,11 @@ retries the same encrypted frames on another deployment if one fails.
 
 1. Open
    <https://github.com/jackh0006/XHR/releases/latest>.
-2. Download `XHR-1.0.1-arm64-v8a.apk`.
+2. Download `XHR-android-arm64-1.0.2.apk`.
 3. SHA-256:
-   `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
-4. Open **Files → Downloads** and tap the APK.
+   `549d3bb49f0dcd851709c38da2b61e1afdb12d683e80a89190eb8a3d43432a0f`
+4. Open **Files → Downloads** and tap the APK. Use arm64 for most phones; the
+   release also has armeabi-v7a, x86, x86_64, and universal APKs.
 5. Allow installs from this source.
 6. If Play Protect warns, choose **Install anyway**.
 

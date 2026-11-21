@@ -5,7 +5,7 @@ v2rayNG chaining, or carrier behaviour.
 
 ## Before testing
 
-- [ ] `dist/XHR-1.0.1-arm64-v8a.apk.sha256` matches the downloaded APK.
+- [ ] `dist/XHR-android-arm64-1.0.2.apk.sha256` matches the downloaded APK.
 - [ ] The phone is arm64 (Huawei Y9 2019: yes).
 - [ ] Google exit is deployed and `/healthz` returns `ok`.
 - [ ] GAS has `AUTH_KEY`, `EXIT_URL`, `EXIT_HMAC`.
@@ -13,7 +13,7 @@ v2rayNG chaining, or carrier behaviour.
 
 ## Install and setup
 
-- [ ] APK installs as `com.jackh0006.xhr` version `1.0.1`.
+- [ ] APK installs as `com.jackh0006.xhr` version `1.0.2`.
 - [ ] Icon is the white/Google-colour X.
 - [ ] Setup accepts deployment ID, AUTH_KEY, 64-hex tunnel key, IP.
 - [ ] Wrong tunnel key is rejected before saving.
@@ -65,7 +65,7 @@ v2rayNG chaining, or carrier behaviour.
 - [ ] Reset today's counters works.
 - [ ] Logs Copy all and Clear work.
 - [ ] Settings survives rotation and app restart.
-- [ ] `About` shows version 1.0.1 and all 14 donation rows.
+- [ ] `About` shows version 1.0.2 and all 14 donation rows.
 - [ ] Copy a donation address and paste it elsewhere.
 - [ ] No analytics traffic in a network capture (only the configured relay).
 - [ ] Airplane mode → error, then network back → reconnect.

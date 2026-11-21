@@ -24,7 +24,7 @@ client (SOCKS5 / TUN)
 |---|---|---|
 | **1** | **Cloudflare Worker + Durable Objects** | Recommended free path; complete guide |
 | **2** | Google Cloud Run | Optional; needs a billing account/card |
-| **3** | Android app (TUN + SOCKS5) | **XHR 1.0.1 APK**, armeabi-v7a / arm64-v8a / x86 / x86_64, Huawei Y9 2019 reference device |
+| **3** | Android app (TUN + SOCKS5) | **XHR 1.0.2 APK**, armeabi-v7a / arm64-v8a / x86 / x86_64, Huawei Y9 2019 reference device |
 
 The Linux preview client in `cmd/xhr-client` is still useful for testing the
 relay from a computer.
@@ -80,25 +80,26 @@ exit always sees the destination. Traffic analysis is still possible.
 
 ## Download the Android app
 
-**[XHR 1.0.1 release](https://github.com/jackh0006/XHR/releases/latest)**
+**[XHR 1.0.2 release](https://github.com/jackh0006/XHR/releases/latest)**
 
-Release APK SHA-256: `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
+Release APK SHA-256: `549d3bb49f0dcd851709c38da2b61e1afdb12d683e80a89190eb8a3d43432a0f`
 
 The same release also includes:
 
 | Asset | Use |
 |---|---|
-| `XHR-1.0.1-linux-amd64.deb` | Debian amd64 client |
-| `XHR-1.0.1-universal-debug.apk` | Debug APK for any supported Android ABI |
-| `XHR-1.0.1-arm64-v8a-debug.apk` | Debug APK for arm64 phones |
-| `XHR-1.0.1-armeabi-v7a-debug.apk` | Debug APK for 32-bit ARM |
-| `XHR-1.0.1-x86-debug.apk` | Debug APK for x86 |
-| `XHR-1.0.1-x86_64-debug.apk` | Debug APK for x86_64 |
+| `XHR-linux-amd64-1.0.2.deb` | Debian amd64 client |
+| `XHR-android-arm64-1.0.2.apk` | Android arm64 |
+| `XHR-android-armeabi-v7a-1.0.2.apk` | Android 32-bit ARM |
+| `XHR-android-x86-1.0.2.apk` | Android x86 |
+| `XHR-android-x86_64-1.0.2.apk` | Android x86_64 |
+| `XHR-android-universal-1.0.2.apk` | Android all ABIs |
 
-Debug APKs use the Android debug key. They cannot be installed over the
-release-signed APK; uninstall the release app first. They are for testing.
+All Android APKs are release-signed with the new XHR 1.0.2 key. Android 1.0.1
+must be uninstalled once before installing 1.0.2; the profile and keys will be
+lost.
 
-> **Upgrading?** Redeploy the exit from tag `v1.0.1`. The 1.0.x client waits
+> **Upgrading?** Redeploy the exit from tag `v1.0.2`. The 1.0.x client waits
 > for the `open_ok` acknowledgement; the old 0.1.0 exit binary will time out.
 
 * One switch for all TCP apps (**TUN**), or a local **SOCKS5** listener for
@@ -153,7 +154,7 @@ quotas. Accounts under the same provider share that provider's quota.
 Download the Debian package for amd64 from the latest release:
 
 ```bash
-sudo apt install ./XHR-1.0.1-linux-amd64.deb
+sudo apt install ./XHR-linux-amd64-1.0.2.deb
 ```
 
 Create the per-user profile:

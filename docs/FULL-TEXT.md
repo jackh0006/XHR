@@ -2559,7 +2559,7 @@ func xhr_version() *C.char {
 	return C.CString(versionString)
 }
 
-const versionString = "1.0.1"
+const versionString = "1.0.2"
 
 func probeJSON(ok bool, ms int, msg, cn, issuer, alpn string) *C.char {
 	b, _ := json.Marshal(map[string]any{

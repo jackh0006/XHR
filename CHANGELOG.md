@@ -4,6 +4,25 @@ All notable changes to XHR are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-11-21
+
+Linux and all-ABI Android release.
+
+### Added
+
+* Debian amd64 package `xhr-client_1.0.2_amd64.deb` with a per-user systemd
+  unit, desktop entry, example config, and documentation.
+* Release-signed Android APKs for `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`,
+  and a universal APK.
+* Native Go engine and `hev-socks5-tunnel` libraries for every Android ABI.
+* Android split-ABI packaging and a universal debug/testing artifact.
+
+### Changed
+
+* A new XHR release signing key is used. Android 1.0.1 must be uninstalled once
+  before installing 1.0.2; the profile and keys will be lost.
+* Linux client supports 1–5 deployment URLs in `gas_urls`.
+
 ## [1.0.1] - 2026-11-20
 
 Download stability fix.
@@ -93,6 +112,7 @@ Initial relay release.
 * Cloud Run phase 1 runs a single instance to keep sessions in memory.
 * Cloudflare Durable Objects may require a paid Workers plan.
 
+[1.0.2]: https://github.com/jackh0006/XHR/releases/tag/v1.0.2
 [1.0.1]: https://github.com/jackh0006/XHR/releases/tag/v1.0.1
 [1.0.0]: https://github.com/jackh0006/XHR/releases/tag/v1.0.0
 [0.1.0]: https://github.com/jackh0006/XHR/releases/tag/v0.1.0

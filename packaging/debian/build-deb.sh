@@ -11,7 +11,7 @@ case "$ARCH" in
 esac
 
 VERSION="$(sed -n 's/^## \[\([^]]*\)\].*/\1/p' "$ROOT/CHANGELOG.md" | head -1)"
-[[ "$VERSION" == "1.0.1" ]] || { echo "expected XHR 1.0.1, got $VERSION" >&2; exit 1; }
+[[ -n "$VERSION" ]] || { echo "cannot read version from CHANGELOG.md" >&2; exit 1; }
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -21,7 +21,7 @@ mkdir -p "$PKG/DEBIAN" "$PKG/usr/bin" \
     "$PKG/usr/share/doc/xhr-client/examples" "$PKG/usr/lib/systemd/user" \
     "$PKG/usr/share/applications" "$PKG/usr/share/icons/hicolor/1024x1024/apps"
 
-sed "s/^Architecture: .*/Architecture: $ARCH/" "$ROOT/packaging/debian/control" > "$PKG/DEBIAN/control"
+sed -e "s/^Version: .*/Version: $VERSION/" -e "s/^Architecture: .*/Architecture: $ARCH/" "$ROOT/packaging/debian/control" > "$PKG/DEBIAN/control"
 CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" \
     go build -trimpath -ldflags='-s -w' -o "$PKG/usr/bin/xhr-client" "$ROOT/cmd/xhr-client"
 install -m 0644 "$ROOT/LICENSE" "$PKG/usr/share/doc/xhr-client/copyright"

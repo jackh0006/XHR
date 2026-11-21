@@ -36,8 +36,8 @@ Cloudflare, finish **[GUIDE-CLOUDFLARE.md](GUIDE-CLOUDFLARE.md)** first.
 
 1. On the phone, open
    <https://github.com/jackh0006/XHR/releases/latest>.
-2. Download `XHR-1.0.1-arm64-v8a.apk`.
-   SHA-256: `2d30085be2704327290c0736a7d944496e24bd7dea2631b9cd44681ed818f891`
+2. Download `XHR-android-arm64-1.0.2.apk`.
+   SHA-256: `549d3bb49f0dcd851709c38da2b61e1afdb12d683e80a89190eb8a3d43432a0f`
 3. Open **Files → Downloads**, tap the APK.
 4. Android asks to allow installs from this source. Allow it for Files or
    Chrome, then tap **Install**.
@@ -45,8 +45,9 @@ Cloudflare, finish **[GUIDE-CLOUDFLARE.md](GUIDE-CLOUDFLARE.md)** first.
    is signed by the XHR release key and the SHA-256 is published with the
    release.
 
-The APK contains **arm64-v8a** native code only. It is built for the Huawei Y9
-2019 and modern arm64 phones.
+The release includes **arm64-v8a**, **armeabi-v7a**, **x86**, **x86_64**, and
+a **universal** APK. Use arm64 for the Huawei Y9 2019 and most modern phones.
+Use universal if you are unsure.
 
 ---
 

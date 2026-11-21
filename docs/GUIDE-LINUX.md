@@ -7,7 +7,7 @@ does not enable itself at boot, and does not support UDP/QUIC.
 ## Install
 
 ```bash
-sudo apt install ./XHR-1.0.1-linux-amd64.deb
+sudo apt install ./XHR-linux-amd64-1.0.2.deb
 ```
 
 The package installs:
@@ -92,7 +92,7 @@ systemctl --user disable --now xhr-client
 ## Update
 
 ```bash
-sudo apt install ./XHR-1.0.1-linux-amd64.deb
+sudo apt install ./XHR-linux-amd64-1.0.2.deb
 systemctl --user restart xhr-client
 ```
 

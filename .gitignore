@@ -29,3 +29,5 @@ dist/*.apk
 dist/*.deb
 dist/xhr-exit-linux-amd64
 android/.kotlin/
+dist/*.apk.sha256
+dist/xhr-client_*.deb.sha256

@@ -33,7 +33,7 @@ for APK in "${APKS[@]}"; do
         *universal*) ABI=universal ;;
         *) echo "unrecognised APK output: $NAME" >&2; exit 1 ;;
     esac
-    OUT="$ROOT/dist/XHR-${VERSION}-${ABI}.apk"
+    OUT="$ROOT/dist/XHR-android-${ABI}-${VERSION}.apk"
     cp -f "$APK" "$OUT"
     sha256sum "$OUT" > "$OUT.sha256"
     ls -lh "$OUT" "$OUT.sha256"
